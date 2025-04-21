@@ -16,88 +16,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-
-// Mock projects data - will be replaced with Supabase data
-const MOCK_PROJECTS = [
-  {
-    id: "1",
-    title: "AI-Powered Meal Planning App",
-    description: "Building an app that uses AI to create personalized meal plans based on dietary preferences, allergies, and nutritional goals. Looking for developers with React Native and ML experience.",
-    stage: "prototype" as ProjectStage,
-    owner: {
-      id: "101",
-      name: "Emma Johnson",
-      avatarUrl: "",
-    },
-    skills: ["React Native", "Machine Learning", "UI/UX Design", "Node.js"],
-    createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: "2",
-    title: "Sustainable Fashion Marketplace",
-    description: "Creating a platform to connect eco-conscious consumers with sustainable fashion brands. Features will include carbon footprint tracking and ethical supply chain verification.",
-    stage: "idea" as ProjectStage,
-    owner: {
-      id: "102",
-      name: "Liam Chen",
-      avatarUrl: "",
-    },
-    skills: ["React", "UI/UX Design", "Digital Marketing", "Product Management"],
-    createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: "3",
-    title: "AR Educational Platform for STEM Learning",
-    description: "Developing an augmented reality platform to make STEM subjects more engaging for middle school students. The app will visualize complex scientific concepts in 3D.",
-    stage: "mvp" as ProjectStage,
-    owner: {
-      id: "103",
-      name: "Sofia Rodriguez",
-      avatarUrl: "",
-    },
-    skills: ["AR/VR", "Unity", "3D Modeling", "Education Content"],
-    createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: "4",
-    title: "Mental Health Tracker for Students",
-    description: "Developing a mobile app for students to track their mental well-being, set goals, and access resources. The app will include mood tracking, guided meditations, and anonymous peer support.",
-    stage: "concept" as ProjectStage,
-    owner: {
-      id: "104",
-      name: "Nathan Park",
-      avatarUrl: "",
-    },
-    skills: ["React Native", "Firebase", "UI/UX Design", "Psychology"],
-    createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: "5",
-    title: "Peer-to-Peer Textbook Exchange",
-    description: "Building a platform for students to buy, sell, and trade textbooks within their university. Features include price comparison, condition ratings, and in-app messaging.",
-    stage: "mvp" as ProjectStage,
-    owner: {
-      id: "105",
-      name: "Olivia Taylor",
-      avatarUrl: "",
-    },
-    skills: ["React", "Node.js", "MongoDB", "Payment Processing"],
-    createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: "6",
-    title: "Campus Event Discovery App",
-    description: "Creating a centralized platform for finding and promoting campus events, club activities, and networking opportunities. Includes personalized recommendations and calendar integration.",
-    stage: "growth" as ProjectStage,
-    owner: {
-      id: "106",
-      name: "Marcus Williams",
-      avatarUrl: "",
-    },
-    skills: ["React Native", "GraphQL", "UX Research", "Marketing"],
-    createdAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-];
+import { supabase } from "@/integrations/supabase/client";
 
 // Skill options for filtering
 const SKILL_OPTIONS = [
@@ -127,21 +46,65 @@ const ProjectsPage = () => {
   const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
-    // Simulate loading projects data
-    const loadProjects = async () => {
+    const fetchProjects = async () => {
       try {
-        // After Supabase integration, this will fetch actual projects
-        setTimeout(() => {
-          setProjects(MOCK_PROJECTS);
-          setIsLoading(false);
-        }, 800);
+        setIsLoading(true);
+        const { data, error } = await supabase
+          .from('projects')
+          .select(`
+            id,
+            title,
+            description,
+            stage,
+            tags,
+            roles_needed,
+            created_at,
+            creator_id
+          `);
+        
+        if (error) {
+          console.error("Error loading projects:", error);
+          setProjects([]);
+        } else {
+          // Transform the data to match ProjectCard props
+          const formattedProjects = await Promise.all(data.map(async (project) => {
+            // Get the owner data
+            const { data: ownerData, error: ownerError } = await supabase
+              .from('profiles')
+              .select('email, avatar_url')
+              .eq('id', project.creator_id)
+              .single();
+              
+            let owner = {
+              id: project.creator_id,
+              name: ownerError ? "Unknown User" : (ownerData.email || "Unknown User"),
+              avatarUrl: ownerError ? "" : (ownerData.avatar_url || ""),
+            };
+            
+            return {
+              id: project.id,
+              title: project.title,
+              description: project.description,
+              stage: project.stage as ProjectStage,
+              owner: owner,
+              skills: project.roles_needed || [],
+              createdAt: project.created_at,
+              // Check if current user is the owner
+              isOwner: false // Will be updated in the component
+            };
+          }));
+          
+          setProjects(formattedProjects);
+        }
       } catch (error) {
         console.error("Error loading projects:", error);
+        setProjects([]);
+      } finally {
         setIsLoading(false);
       }
     };
 
-    loadProjects();
+    fetchProjects();
   }, []);
 
   // Apply filters to projects
@@ -317,18 +280,29 @@ const ProjectsPage = () => {
             <div className="text-center py-16">
               <h3 className="text-lg font-medium text-gray-900 mb-2">No projects found</h3>
               <p className="text-gray-600 mb-6">
-                Try adjusting your search or filters to find what you're looking for.
+                {projects.length === 0 
+                  ? "Be the first to create a project!" 
+                  : "Try adjusting your search or filters to find what you're looking for."}
               </p>
-              <Button 
-                variant="outline" 
-                onClick={() => {
-                  setSearchQuery("");
-                  setStageFilter(null);
-                  setSelectedSkills([]);
-                }}
-              >
-                Clear all filters
-              </Button>
+              {projects.length === 0 ? (
+                <Button 
+                  className="bg-cobrew-600 hover:bg-cobrew-700"
+                  asChild
+                >
+                  <Link to="/projects/new">Create Project</Link>
+                </Button>
+              ) : (
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setSearchQuery("");
+                    setStageFilter(null);
+                    setSelectedSkills([]);
+                  }}
+                >
+                  Clear all filters
+                </Button>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -342,6 +316,7 @@ const ProjectsPage = () => {
                   owner={project.owner}
                   skills={project.skills}
                   createdAt={project.createdAt}
+                  isOwner={project.isOwner}
                 />
               ))}
             </div>

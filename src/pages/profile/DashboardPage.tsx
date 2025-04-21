@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import Layout from "@/components/layout/Layout";
 import ProjectCard, { ProjectStage } from "@/components/project/ProjectCard";
 import { Button } from "@/components/ui/button";
@@ -9,172 +9,118 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
-
-// Mock user profile data - will be replaced with Supabase data
-const MOCK_USER = {
-  id: "101",
-  name: "Alex Johnson",
-  title: "Full Stack Developer",
-  bio: "I'm a Computer Science student passionate about building solutions that solve real-world problems.",
-  avatarUrl: "",
-  skills: ["JavaScript", "React", "Node.js", "Python", "UI/UX Design"],
-  profileComplete: true,
-};
-
-// Mock user projects
-const MOCK_PROJECTS = [
-  {
-    id: "1",
-    title: "AI-Powered Meal Planning App",
-    description: "Building an app that uses AI to create personalized meal plans based on dietary preferences, allergies, and nutritional goals. Looking for developers with React Native and ML experience.",
-    stage: "prototype" as ProjectStage,
-    owner: {
-      id: "101",
-      name: "Alex Johnson",
-      avatarUrl: "",
-    },
-    skills: ["React Native", "Machine Learning", "UI/UX Design", "Node.js"],
-    createdAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
-    isOwner: true,
-  },
-  {
-    id: "2",
-    title: "Student Collaboration Platform",
-    description: "Creating a platform for students to collaborate on projects, share resources, and build portfolios. Features include project matching, skill verification, and integrations with GitHub and educational platforms.",
-    stage: "mvp" as ProjectStage,
-    owner: {
-      id: "101",
-      name: "Alex Johnson",
-      avatarUrl: "",
-    },
-    skills: ["React", "TypeScript", "Node.js", "PostgreSQL"],
-    createdAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString(),
-    isOwner: true,
-  },
-];
-
-// Mock collaborations (projects the user is contributing to but doesn't own)
-const MOCK_COLLABORATIONS = [
-  {
-    id: "3",
-    title: "AR Educational Platform for STEM Learning",
-    description: "Developing an augmented reality platform to make STEM subjects more engaging for middle school students. The app will visualize complex scientific concepts in 3D.",
-    stage: "concept" as ProjectStage,
-    owner: {
-      id: "103",
-      name: "Sofia Rodriguez",
-      avatarUrl: "",
-    },
-    skills: ["AR/VR", "Unity", "3D Modeling", "Education Content"],
-    createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-    isOwner: false,
-  },
-];
-
-// Mock applications
-const MOCK_APPLICATIONS = [
-  {
-    id: "app1",
-    project: {
-      id: "4",
-      title: "Mental Health Tracker for Students",
-      stage: "concept" as ProjectStage,
-      owner: {
-        id: "104",
-        name: "Nathan Park",
-        avatarUrl: "",
-      },
-    },
-    status: "pending",
-    appliedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: "app2",
-    project: {
-      id: "5",
-      title: "Peer-to-Peer Textbook Exchange",
-      stage: "mvp" as ProjectStage,
-      owner: {
-        id: "105",
-        name: "Olivia Taylor",
-        avatarUrl: "",
-      },
-    },
-    status: "accepted",
-    appliedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-];
-
-// Mock notifications
-const MOCK_NOTIFICATIONS = [
-  {
-    id: "not1",
-    type: "application",
-    title: "New Application",
-    content: "Maria Davis has applied to join your AI-Powered Meal Planning App project",
-    isRead: false,
-    timestamp: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-    linkTo: "/dashboard/applications",
-  },
-  {
-    id: "not2",
-    type: "message",
-    title: "New Message",
-    content: "You have a new message from David Chen",
-    isRead: false,
-    timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-    linkTo: "/messages",
-  },
-  {
-    id: "not3",
-    type: "application_update",
-    title: "Application Accepted",
-    content: "Your application to join Peer-to-Peer Textbook Exchange has been accepted",
-    isRead: true,
-    timestamp: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-    linkTo: "/projects/5",
-  },
-];
-
-// Mock stats
-const MOCK_STATS = {
-  projectsCreated: 2,
-  projectsJoined: 1,
-  applicationsPending: 1,
-  messagesUnread: 3,
-};
+import { supabase } from "@/integrations/supabase/client";
 
 const DashboardPage = () => {
   const [user, setUser] = useState(null);
+  const [session, setSession] = useState(null);
+  const [userProfile, setUserProfile] = useState(null);
   const [projects, setProjects] = useState([]);
   const [collaborations, setCollaborations] = useState([]);
   const [applications, setApplications] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [stats, setStats] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    // Simulate loading dashboard data
-    const loadDashboard = async () => {
-      try {
-        // After Supabase integration, this will fetch actual user data
-        setTimeout(() => {
-          setUser(MOCK_USER);
-          setProjects(MOCK_PROJECTS);
-          setCollaborations(MOCK_COLLABORATIONS);
-          setApplications(MOCK_APPLICATIONS);
-          setNotifications(MOCK_NOTIFICATIONS);
-          setStats(MOCK_STATS);
+    // Check auth status
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, currentSession) => {
+        setSession(currentSession);
+        setUser(currentSession?.user ?? null);
+        
+        if (currentSession?.user) {
+          loadDashboardData(currentSession.user.id);
+        } else {
           setIsLoading(false);
-        }, 800);
-      } catch (error) {
-        console.error("Error loading dashboard:", error);
+        }
+      }
+    );
+
+    // Get current session
+    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+      setSession(currentSession);
+      setUser(currentSession?.user ?? null);
+      
+      if (currentSession?.user) {
+        loadDashboardData(currentSession.user.id);
+      } else {
         setIsLoading(false);
       }
-    };
+    });
 
-    loadDashboard();
+    return () => subscription.unsubscribe();
   }, []);
+
+  const loadDashboardData = async (userId) => {
+    try {
+      setIsLoading(true);
+      
+      // Load user profile
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+      
+      if (profileError) {
+        console.error('Error fetching profile:', profileError);
+      } else {
+        setUserProfile(profileData);
+      }
+      
+      // Load user's projects (created by them)
+      const { data: projectsData, error: projectsError } = await supabase
+        .from('projects')
+        .select('*')
+        .eq('creator_id', userId);
+      
+      if (projectsError) {
+        console.error('Error fetching projects:', projectsError);
+      } else {
+        // Format projects for ProjectCard component
+        const formattedProjects = projectsData.map(project => ({
+          id: project.id,
+          title: project.title,
+          description: project.description,
+          stage: project.stage as ProjectStage,
+          owner: {
+            id: userId,
+            name: profileData?.email || "You",
+            avatarUrl: profileData?.avatar_url || "",
+          },
+          skills: project.roles_needed || [],
+          createdAt: project.created_at,
+          isOwner: true
+        }));
+        
+        setProjects(formattedProjects);
+      }
+      
+      // In a real implementation, you would fetch:
+      // - Collaborations (projects user has joined)
+      // - Applications (user's applications to join projects)
+      // - Notifications
+      // For now, we'll leave these empty since they require additional tables/relations
+      setCollaborations([]);
+      setApplications([]);
+      setNotifications([]);
+      
+      // Set user stats
+      setStats({
+        projectsCreated: projectsData?.length || 0,
+        projectsJoined: 0, // Would be populated in real implementation
+        applicationsPending: 0, // Would be populated in real implementation
+        messagesUnread: 0 // Would be populated in real implementation
+      });
+      
+    } catch (error) {
+      console.error("Error loading dashboard:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -185,6 +131,7 @@ const DashboardPage = () => {
   };
 
   const getInitials = (name) => {
+    if (!name) return "U";
     return name
       .split(" ")
       .map((part) => part[0])
@@ -239,9 +186,12 @@ const DashboardPage = () => {
     );
   }
 
-  if (!user.profileComplete) {
+  // Check if profile is complete (in a real app you'd have a proper check)
+  const profileComplete = true;
+
+  if (!profileComplete) {
     return (
-      <Layout isAuthenticated={true} userProfile={user}>
+      <Layout isAuthenticated={true} userProfile={userProfile}>
         <div className="min-h-screen py-16 flex items-center justify-center bg-gray-50">
           <div className="max-w-md text-center">
             <h1 className="text-2xl font-bold text-gray-900">Complete Your Profile</h1>
@@ -261,7 +211,7 @@ const DashboardPage = () => {
   }
 
   return (
-    <Layout isAuthenticated={true} userProfile={user}>
+    <Layout isAuthenticated={true} userProfile={userProfile}>
       <div className="min-h-screen py-16 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row gap-6">
@@ -272,31 +222,21 @@ const DashboardPage = () => {
                 <CardHeader className="pb-2">
                   <div className="flex items-center">
                     <Avatar className="h-12 w-12">
-                      <AvatarImage src={user.avatarUrl} />
+                      <AvatarImage src={userProfile?.avatar_url} />
                       <AvatarFallback className="bg-cobrew-100 text-cobrew-800">
-                        {getInitials(user.name)}
+                        {getInitials(userProfile?.email || "")}
                       </AvatarFallback>
                     </Avatar>
                     <div className="ml-3">
-                      <CardTitle className="text-lg">{user.name}</CardTitle>
-                      <CardDescription>{user.title}</CardDescription>
+                      <CardTitle className="text-lg">{userProfile?.email}</CardTitle>
+                      <CardDescription>Student</CardDescription>
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-sm text-gray-600 mb-4">{user.bio}</p>
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {user.skills.slice(0, 3).map((skill, index) => (
-                      <Badge key={index} variant="secondary" className="bg-gray-100">
-                        {skill}
-                      </Badge>
-                    ))}
-                    {user.skills.length > 3 && (
-                      <Badge variant="secondary" className="bg-gray-100">
-                        +{user.skills.length - 3} more
-                      </Badge>
-                    )}
-                  </div>
+                  <p className="text-sm text-gray-600 mb-4">
+                    {userProfile?.bio || "No bio yet. Complete your profile to add more information."}
+                  </p>
                   <Button 
                     variant="outline" 
                     className="w-full"
@@ -316,25 +256,25 @@ const DashboardPage = () => {
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600">Projects Created</span>
                     <Badge variant="secondary" className="bg-cobrew-50 text-cobrew-800">
-                      {stats.projectsCreated}
+                      {stats?.projectsCreated || 0}
                     </Badge>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600">Projects Joined</span>
                     <Badge variant="secondary" className="bg-cobrew-50 text-cobrew-800">
-                      {stats.projectsJoined}
+                      {stats?.projectsJoined || 0}
                     </Badge>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600">Pending Applications</span>
                     <Badge variant="secondary" className="bg-cobrew-50 text-cobrew-800">
-                      {stats.applicationsPending}
+                      {stats?.applicationsPending || 0}
                     </Badge>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600">Unread Messages</span>
                     <Badge variant="secondary" className="bg-cobrew-50 text-cobrew-800">
-                      {stats.messagesUnread}
+                      {stats?.messagesUnread || 0}
                     </Badge>
                   </div>
                 </CardContent>

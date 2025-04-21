@@ -89,8 +89,8 @@ const Navbar = ({ isAuthenticated = false, userProfile = null }) => {
       .substring(0, 2);
   };
 
-  // Check if user is authenticated
-  const userIsAuthenticated = !!user;
+  // Check if user is authenticated - use both props and local state
+  const userIsAuthenticated = isAuthenticated || !!session;
   const userProfileData = profile || userProfile;
 
   return (

@@ -26,8 +26,7 @@ const HomePage = () => {
             stage, 
             tags, 
             created_at,
-            creator_id,
-            profiles(id, email, avatar_url)
+            creator_id
           `)
           .limit(3);
         

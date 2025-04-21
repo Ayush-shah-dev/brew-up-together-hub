@@ -32,7 +32,9 @@ const Layout = ({ children }: LayoutProps) => {
       (event, currentSession) => {
         setSession(currentSession);
         if (currentSession?.user) {
-          fetchUserProfile(currentSession.user.id);
+          setTimeout(() => {
+            fetchUserProfile(currentSession.user.id);
+          }, 0);
         } else {
           setUserProfile(null);
         }
