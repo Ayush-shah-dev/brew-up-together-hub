@@ -2,57 +2,50 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import Layout from "@/components/layout/Layout";
-import ProjectCard from "@/components/project/ProjectCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { ProjectStage } from "@/components/project/ProjectCard";
-
-// Mock data for featured projects
-const FEATURED_PROJECTS = [
-  {
-    id: "1",
-    title: "AI-Powered Meal Planning App",
-    description: "Building an app that uses AI to create personalized meal plans based on dietary preferences, allergies, and nutritional goals. Looking for developers with React Native and ML experience.",
-    stage: "prototype" as ProjectStage,
-    owner: {
-      id: "101",
-      name: "Emma Johnson",
-      avatarUrl: "",
-    },
-    skills: ["React Native", "Machine Learning", "UI/UX Design", "Node.js"],
-    createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: "2",
-    title: "Sustainable Fashion Marketplace",
-    description: "Creating a platform to connect eco-conscious consumers with sustainable fashion brands. Features will include carbon footprint tracking and ethical supply chain verification.",
-    stage: "idea" as ProjectStage,
-    owner: {
-      id: "102",
-      name: "Liam Chen",
-      avatarUrl: "",
-    },
-    skills: ["React", "UI/UX Design", "Digital Marketing", "Product Management"],
-    createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: "3",
-    title: "AR Educational Platform for STEM Learning",
-    description: "Developing an augmented reality platform to make STEM subjects more engaging for middle school students. The app will visualize complex scientific concepts in 3D.",
-    stage: "mvp" as ProjectStage,
-    owner: {
-      id: "103",
-      name: "Sofia Rodriguez",
-      avatarUrl: "",
-    },
-    skills: ["AR/VR", "Unity", "3D Modeling", "Education Content"],
-    createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-];
+import { useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 const HomePage = () => {
   const [searchQuery, setSearchQuery] = useState("");
+  const [featuredProjects, setFeaturedProjects] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        setLoading(true);
+        const { data, error } = await supabase
+          .from('projects')
+          .select(`
+            id, 
+            title, 
+            description, 
+            stage, 
+            tags, 
+            created_at,
+            creator_id,
+            profiles(id, email, avatar_url)
+          `)
+          .limit(3);
+        
+        if (error) {
+          console.error('Error fetching projects:', error);
+          return;
+        }
+        
+        setFeaturedProjects(data || []);
+      } catch (error) {
+        console.error('Error:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProjects();
+  }, []);
 
   return (
     <Layout>
@@ -139,20 +132,50 @@ const HomePage = () => {
               <Button variant="outline">View All Projects</Button>
             </Link>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {FEATURED_PROJECTS.map((project) => (
-              <ProjectCard
-                key={project.id}
-                id={project.id}
-                title={project.title}
-                description={project.description}
-                stage={project.stage}
-                owner={project.owner}
-                skills={project.skills}
-                createdAt={project.createdAt}
-              />
-            ))}
-          </div>
+          {loading ? (
+            <div className="text-center py-10">
+              <p>Loading projects...</p>
+            </div>
+          ) : featuredProjects.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {featuredProjects.map((project) => (
+                <Link to={`/projects/${project.id}`} key={project.id} className="block">
+                  <div className="bg-white rounded-lg shadow-sm p-6 h-full hover:shadow-md transition-shadow">
+                    <h3 className="text-xl font-semibold mb-2">{project.title}</h3>
+                    <p className="text-gray-600 mb-4 line-clamp-3">{project.description}</p>
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      {project.tags && project.tags.slice(0, 3).map((tag, index) => (
+                        <Badge key={index} variant="secondary" className="bg-gray-100">
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <Badge 
+                        variant="outline" 
+                        className="bg-blue-100 text-blue-800"
+                      >
+                        {project.stage}
+                      </Badge>
+                      <span className="text-sm text-gray-500">
+                        {new Date(project.created_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-10">
+              <p>No projects found. Be the first to create a project!</p>
+              <Button 
+                className="mt-4 bg-cobrew-600 hover:bg-cobrew-700"
+                asChild
+              >
+                <Link to="/projects/new">Create Project</Link>
+              </Button>
+            </div>
+          )}
         </div>
       </section>
 
@@ -197,57 +220,6 @@ const HomePage = () => {
             >
               <Link to="/signup">Get Started</Link>
             </Button>
-          </div>
-        </div>
-      </section>
-
-      {/* Testimonials */}
-      <section className="py-16 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold text-center text-gray-900 mb-12">What Students Say</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="bg-white p-6 rounded-lg shadow-sm">
-              <div className="flex items-center mb-4">
-                <div className="h-10 w-10 rounded-full bg-cobrew-200 flex items-center justify-center">
-                  <span className="text-cobrew-800 font-medium">AJ</span>
-                </div>
-                <div className="ml-3">
-                  <h3 className="font-medium">Alex Johnson</h3>
-                  <p className="text-sm text-gray-500">Computer Science, Stanford</p>
-                </div>
-              </div>
-              <p className="text-gray-600">
-                "I found an amazing team through Co-Brew to work on my AI startup idea. Within weeks, we had a working prototype!"
-              </p>
-            </div>
-            <div className="bg-white p-6 rounded-lg shadow-sm">
-              <div className="flex items-center mb-4">
-                <div className="h-10 w-10 rounded-full bg-cobrew-200 flex items-center justify-center">
-                  <span className="text-cobrew-800 font-medium">MP</span>
-                </div>
-                <div className="ml-3">
-                  <h3 className="font-medium">Maya Patel</h3>
-                  <p className="text-sm text-gray-500">Business, NYU</p>
-                </div>
-              </div>
-              <p className="text-gray-600">
-                "As a business student with a fintech idea, I needed technical co-founders. Co-Brew helped me connect with talented developers."
-              </p>
-            </div>
-            <div className="bg-white p-6 rounded-lg shadow-sm">
-              <div className="flex items-center mb-4">
-                <div className="h-10 w-10 rounded-full bg-cobrew-200 flex items-center justify-center">
-                  <span className="text-cobrew-800 font-medium">TW</span>
-                </div>
-                <div className="ml-3">
-                  <h3 className="font-medium">Tyler Washington</h3>
-                  <p className="text-sm text-gray-500">Design, RISD</p>
-                </div>
-              </div>
-              <p className="text-gray-600">
-                "I've joined three projects through Co-Brew that perfectly matched my UI/UX skills. It's been amazing for my portfolio and network."
-              </p>
-            </div>
           </div>
         </div>
       </section>
