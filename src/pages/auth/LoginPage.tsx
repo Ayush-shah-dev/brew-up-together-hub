@@ -1,9 +1,26 @@
 
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
 import Layout from "@/components/layout/Layout";
 import AuthForm from "@/components/auth/AuthForm";
+import { supabase } from "@/integrations/supabase/client";
 
 const LoginPage = () => {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // Check if user is already logged in, redirect to home
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (data?.session) {
+        navigate('/');
+      }
+    };
+    
+    checkSession();
+  }, [navigate]);
+
   return (
     <Layout>
       <div className="min-h-screen py-16 flex items-center justify-center bg-gray-50">

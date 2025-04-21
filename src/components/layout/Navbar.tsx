@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -23,6 +23,10 @@ import { toast } from "sonner";
 const Navbar = ({ isAuthenticated = false, userProfile = null }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Check if we're on an auth page to hide login/signup buttons
+  const isAuthPage = location.pathname === '/login' || location.pathname === '/signup' || location.pathname === '/forgot-password';
 
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
@@ -134,20 +138,22 @@ const Navbar = ({ isAuthenticated = false, userProfile = null }) => {
                 </DropdownMenu>
               </div>
             ) : (
-              <div className="flex items-center gap-4">
-                <Button 
-                  variant="outline" 
-                  onClick={() => navigate("/login")}
-                >
-                  Login
-                </Button>
-                <Button 
-                  className="bg-cobrew-600 hover:bg-cobrew-700"
-                  onClick={() => navigate("/signup")}
-                >
-                  Sign Up
-                </Button>
-              </div>
+              !isAuthPage && (
+                <div className="flex items-center gap-4">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => navigate("/login")}
+                  >
+                    Login
+                  </Button>
+                  <Button 
+                    className="bg-cobrew-600 hover:bg-cobrew-700"
+                    onClick={() => navigate("/signup")}
+                  >
+                    Sign Up
+                  </Button>
+                </div>
+              )
             )}
           </div>
           <div className="-mr-2 flex items-center sm:hidden">
@@ -278,21 +284,23 @@ const Navbar = ({ isAuthenticated = false, userProfile = null }) => {
                 </div>
               </>
             ) : (
-              <div className="space-y-1 px-4">
-                <Button 
-                  variant="outline" 
-                  className="w-full justify-center mb-2"
-                  onClick={() => navigate("/login")}
-                >
-                  Login
-                </Button>
-                <Button 
-                  className="w-full justify-center bg-cobrew-600 hover:bg-cobrew-700"
-                  onClick={() => navigate("/signup")}
-                >
-                  Sign Up
-                </Button>
-              </div>
+              !isAuthPage && (
+                <div className="space-y-1 px-4">
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-center mb-2"
+                    onClick={() => navigate("/login")}
+                  >
+                    Login
+                  </Button>
+                  <Button 
+                    className="w-full justify-center bg-cobrew-600 hover:bg-cobrew-700"
+                    onClick={() => navigate("/signup")}
+                  >
+                    Sign Up
+                  </Button>
+                </div>
+              )
             )}
           </div>
         </div>

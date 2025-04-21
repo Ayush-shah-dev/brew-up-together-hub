@@ -15,7 +15,8 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 type AuthMode = "login" | "signup";
 
@@ -39,7 +40,6 @@ type SignupFormValues = z.infer<typeof signupSchema>;
 const AuthForm = ({ mode }: { mode: AuthMode }) => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
-  const { toast } = useToast();
 
   // Initialize the form
   const loginForm = useForm<LoginFormValues>({
@@ -63,52 +63,41 @@ const AuthForm = ({ mode }: { mode: AuthMode }) => {
   const onLoginSubmit = async (values: LoginFormValues) => {
     setIsLoading(true);
     try {
-      // After Supabase integration, we will add actual login logic here
-      console.log("Login values:", values);
-      
-      toast({
-        title: "Login successful",
-        description: "Welcome back to Co-Brew!",
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: values.email,
+        password: values.password,
       });
       
-      // Simulate successful login for now
-      setTimeout(() => {
-        setIsLoading(false);
-        navigate("/dashboard");
-      }, 1500);
+      if (error) throw error;
+      
+      toast.success("Login successful! Welcome back to Co-Brew!");
+      navigate("/");
     } catch (error) {
       setIsLoading(false);
-      toast({
-        title: "Login failed",
-        description: "Invalid email or password",
-        variant: "destructive",
-      });
+      toast.error(error.message || "Invalid email or password");
     }
   };
 
   const onSignupSubmit = async (values: SignupFormValues) => {
     setIsLoading(true);
     try {
-      // After Supabase integration, we will add actual signup logic here
-      console.log("Signup values:", values);
-      
-      toast({
-        title: "Account created",
-        description: "Welcome to Co-Brew! Complete your profile to get started.",
+      const { data, error } = await supabase.auth.signUp({
+        email: values.email,
+        password: values.password,
+        options: {
+          data: {
+            name: values.name,
+          },
+        },
       });
       
-      // Simulate successful signup for now
-      setTimeout(() => {
-        setIsLoading(false);
-        navigate("/profile/create");
-      }, 1500);
+      if (error) throw error;
+      
+      toast.success("Account created! Please check your email to confirm your account.");
+      navigate("/");
     } catch (error) {
       setIsLoading(false);
-      toast({
-        title: "Signup failed",
-        description: "Error creating account. Please try again.",
-        variant: "destructive",
-      });
+      toast.error(error.message || "Error creating account. Please try again.");
     }
   };
 

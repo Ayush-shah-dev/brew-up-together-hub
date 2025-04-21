@@ -3,7 +3,7 @@ import { ReactNode, useEffect, useState } from "react";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 
 interface LayoutProps {
@@ -22,6 +22,10 @@ const Layout = ({ children, requireAuth = false }: LayoutProps) => {
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Check if we're on an auth page
+  const isAuthPage = location.pathname === '/login' || location.pathname === '/signup' || location.pathname === '/forgot-password';
 
   useEffect(() => {
     // Set up auth listener
@@ -29,6 +33,7 @@ const Layout = ({ children, requireAuth = false }: LayoutProps) => {
       (event, currentSession) => {
         setSession(currentSession);
         if (currentSession?.user) {
+          // Use setTimeout to prevent deadlocks with Supabase auth
           setTimeout(() => {
             fetchUserProfile(currentSession.user.id);
           }, 0);
@@ -58,7 +63,12 @@ const Layout = ({ children, requireAuth = false }: LayoutProps) => {
       toast.error("Please log in to access this page");
       navigate("/login");
     }
-  }, [loading, requireAuth, session, navigate]);
+    
+    // Redirect if user is already logged in and accessing auth pages
+    if (!loading && session && isAuthPage) {
+      navigate("/");
+    }
+  }, [loading, requireAuth, session, navigate, isAuthPage]);
 
   const fetchUserProfile = async (userId) => {
     const { data, error } = await supabase
