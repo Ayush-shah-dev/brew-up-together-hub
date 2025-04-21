@@ -3,6 +3,8 @@ import { ReactNode, useEffect, useState } from "react";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
 import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 interface LayoutProps {
   children: ReactNode;
@@ -12,21 +14,16 @@ interface LayoutProps {
     email?: string;
     avatarUrl?: string;
   } | null;
+  requireAuth?: boolean;
 }
 
-const Layout = ({ children }: LayoutProps) => {
+const Layout = ({ children, requireAuth = false }: LayoutProps) => {
   const [session, setSession] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    // Check active session
-    supabase.auth.getSession().then(({ data: { session: activeSession } }) => {
-      setSession(activeSession);
-      if (activeSession?.user) {
-        fetchUserProfile(activeSession.user.id);
-      }
-    });
-
     // Set up auth listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, currentSession) => {
@@ -38,11 +35,30 @@ const Layout = ({ children }: LayoutProps) => {
         } else {
           setUserProfile(null);
         }
+        
+        setLoading(false);
       }
     );
 
+    // Check active session
+    supabase.auth.getSession().then(({ data: { session: activeSession } }) => {
+      setSession(activeSession);
+      if (activeSession?.user) {
+        fetchUserProfile(activeSession.user.id);
+      }
+      setLoading(false);
+    });
+
     return () => subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    // Handle page requiring authentication
+    if (!loading && requireAuth && !session) {
+      toast.error("Please log in to access this page");
+      navigate("/login");
+    }
+  }, [loading, requireAuth, session, navigate]);
 
   const fetchUserProfile = async (userId) => {
     const { data, error } = await supabase

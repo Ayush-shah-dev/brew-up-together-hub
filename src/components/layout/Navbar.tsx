@@ -18,58 +18,11 @@ import {
   MessageCircle,
   BriefcaseIcon
 } from "lucide-react";
+import { toast } from "sonner";
 
 const Navbar = ({ isAuthenticated = false, userProfile = null }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [session, setSession] = useState(null);
-  const [user, setUser] = useState(null);
-  const [profile, setProfile] = useState(null);
   const navigate = useNavigate();
-
-  useEffect(() => {
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, currentSession) => {
-        setSession(currentSession);
-        setUser(currentSession?.user ?? null);
-        
-        if (currentSession?.user) {
-          setTimeout(() => {
-            fetchUserProfile(currentSession.user.id);
-          }, 0);
-        } else {
-          setProfile(null);
-        }
-      }
-    );
-
-    // Check for existing session
-    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
-      setSession(currentSession);
-      setUser(currentSession?.user ?? null);
-      
-      if (currentSession?.user) {
-        fetchUserProfile(currentSession.user.id);
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const fetchUserProfile = async (userId) => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
-    
-    if (error) {
-      console.error('Error fetching profile:', error);
-      return;
-    }
-    
-    setProfile(data);
-  };
 
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
@@ -77,7 +30,8 @@ const Navbar = ({ isAuthenticated = false, userProfile = null }) => {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    navigate("/login");
+    toast.success("Logged out successfully");
+    navigate("/");
   };
 
   const getInitials = (name = "") => {
@@ -88,10 +42,6 @@ const Navbar = ({ isAuthenticated = false, userProfile = null }) => {
       .toUpperCase()
       .substring(0, 2);
   };
-
-  // Check if user is authenticated - use both props and local state
-  const userIsAuthenticated = isAuthenticated || !!session;
-  const userProfileData = profile || userProfile;
 
   return (
     <nav className="bg-white border-b border-gray-200 fixed w-full z-30 top-0">
@@ -116,7 +66,7 @@ const Navbar = ({ isAuthenticated = false, userProfile = null }) => {
               >
                 Projects
               </Link>
-              {userIsAuthenticated && (
+              {isAuthenticated && (
                 <>
                   <Link
                     to="/dashboard"
@@ -135,7 +85,7 @@ const Navbar = ({ isAuthenticated = false, userProfile = null }) => {
             </div>
           </div>
           <div className="hidden sm:ml-6 sm:flex sm:items-center">
-            {userIsAuthenticated ? (
+            {isAuthenticated ? (
               <div className="flex items-center gap-4">
                 <Button 
                   onClick={() => navigate("/projects/new")} 
@@ -146,16 +96,16 @@ const Navbar = ({ isAuthenticated = false, userProfile = null }) => {
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Avatar className="h-8 w-8 cursor-pointer">
-                      <AvatarImage src={userProfileData?.avatar_url} />
+                      <AvatarImage src={userProfile?.avatar_url} />
                       <AvatarFallback className="bg-cobrew-500 text-white">
-                        {getInitials(userProfileData?.email || "User")}
+                        {getInitials(userProfile?.email || "User")}
                       </AvatarFallback>
                     </Avatar>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56">
                     <div className="flex items-center justify-start gap-2 p-2">
                       <div className="flex flex-col space-y-1 leading-none">
-                        <p className="font-medium">{userProfileData?.email || "User"}</p>
+                        <p className="font-medium">{userProfile?.email || "User"}</p>
                       </div>
                     </div>
                     <DropdownMenuSeparator />
@@ -259,7 +209,7 @@ const Navbar = ({ isAuthenticated = false, userProfile = null }) => {
             >
               Projects
             </Link>
-            {userIsAuthenticated && (
+            {isAuthenticated && (
               <>
                 <Link
                   to="/dashboard"
@@ -277,20 +227,20 @@ const Navbar = ({ isAuthenticated = false, userProfile = null }) => {
             )}
           </div>
           <div className="pt-4 pb-3 border-t border-gray-200">
-            {userIsAuthenticated ? (
+            {isAuthenticated ? (
               <>
                 <div className="flex items-center px-4">
                   <div className="flex-shrink-0">
                     <Avatar className="h-8 w-8">
-                      <AvatarImage src={userProfileData?.avatar_url} />
+                      <AvatarImage src={userProfile?.avatar_url} />
                       <AvatarFallback className="bg-cobrew-500 text-white">
-                        {getInitials(userProfileData?.email || "User")}
+                        {getInitials(userProfile?.email || "User")}
                       </AvatarFallback>
                     </Avatar>
                   </div>
                   <div className="ml-3">
                     <div className="text-base font-medium text-gray-800">
-                      {userProfileData?.email || "User"}
+                      {userProfile?.email || "User"}
                     </div>
                   </div>
                 </div>

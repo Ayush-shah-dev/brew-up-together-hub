@@ -1,19 +1,35 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const HomePage = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [featuredProjects, setFeaturedProjects] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [session, setSession] = useState(null);
 
   useEffect(() => {
+    // Check if user is logged in
+    supabase.auth.getSession().then(({ data: { session: activeSession } }) => {
+      setSession(activeSession);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, currentSession) => {
+        setSession(currentSession);
+        
+        if (event === 'SIGNED_IN') {
+          toast.success("Login successful! Welcome to Co-Brew!");
+        }
+      }
+    );
+
     const fetchProjects = async () => {
       try {
         setLoading(true);
@@ -44,6 +60,8 @@ const HomePage = () => {
     };
 
     fetchProjects();
+    
+    return () => subscription.unsubscribe();
   }, []);
 
   return (
@@ -58,21 +76,43 @@ const HomePage = () => {
             Co-Brew connects student entrepreneurs with talented collaborators to turn innovative ideas into successful projects.
           </p>
           <div className="mt-10 flex flex-col sm:flex-row gap-4">
-            <Button 
-              size="lg" 
-              className="bg-white text-cobrew-700 hover:bg-white/90"
-              asChild
-            >
-              <Link to="/signup">Join Co-Brew</Link>
-            </Button>
-            <Button 
-              size="lg" 
-              variant="outline" 
-              className="border-white text-white hover:bg-white/10"
-              asChild
-            >
-              <Link to="/projects">Browse Projects</Link>
-            </Button>
+            {!session ? (
+              <>
+                <Button 
+                  size="lg" 
+                  className="bg-white text-cobrew-700 hover:bg-white/90"
+                  asChild
+                >
+                  <Link to="/signup">Join Co-Brew</Link>
+                </Button>
+                <Button 
+                  size="lg" 
+                  variant="outline" 
+                  className="border-white text-white hover:bg-white/10"
+                  asChild
+                >
+                  <Link to="/projects">Browse Projects</Link>
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button 
+                  size="lg" 
+                  className="bg-white text-cobrew-700 hover:bg-white/90"
+                  asChild
+                >
+                  <Link to="/projects/new">Create Project</Link>
+                </Button>
+                <Button 
+                  size="lg" 
+                  variant="outline" 
+                  className="border-white text-white hover:bg-white/10"
+                  asChild
+                >
+                  <Link to="/dashboard">Go to Dashboard</Link>
+                </Button>
+              </>
+            )}
           </div>
         </div>
         <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-white to-transparent"></div>
@@ -212,13 +252,23 @@ const HomePage = () => {
             </div>
           </div>
           <div className="mt-12 text-center">
-            <Button 
-              size="lg" 
-              className="bg-cobrew-600 hover:bg-cobrew-700"
-              asChild
-            >
-              <Link to="/signup">Get Started</Link>
-            </Button>
+            {!session ? (
+              <Button 
+                size="lg" 
+                className="bg-cobrew-600 hover:bg-cobrew-700"
+                asChild
+              >
+                <Link to="/signup">Get Started</Link>
+              </Button>
+            ) : (
+              <Button 
+                size="lg" 
+                className="bg-cobrew-600 hover:bg-cobrew-700"
+                asChild
+              >
+                <Link to="/projects">Browse Projects</Link>
+              </Button>
+            )}
           </div>
         </div>
       </section>
@@ -231,21 +281,43 @@ const HomePage = () => {
             Join a community of student entrepreneurs and collaborators today.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button 
-              size="lg" 
-              className="bg-white text-cobrew-700 hover:bg-white/90"
-              asChild
-            >
-              <Link to="/signup">Create Account</Link>
-            </Button>
-            <Button 
-              size="lg" 
-              variant="outline" 
-              className="border-white text-white hover:bg-white/10"
-              asChild
-            >
-              <Link to="/login">Sign In</Link>
-            </Button>
+            {!session ? (
+              <>
+                <Button 
+                  size="lg" 
+                  className="bg-white text-cobrew-700 hover:bg-white/90"
+                  asChild
+                >
+                  <Link to="/signup">Create Account</Link>
+                </Button>
+                <Button 
+                  size="lg" 
+                  variant="outline" 
+                  className="border-white text-white hover:bg-white/10"
+                  asChild
+                >
+                  <Link to="/login">Sign In</Link>
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button 
+                  size="lg" 
+                  className="bg-white text-cobrew-700 hover:bg-white/90"
+                  asChild
+                >
+                  <Link to="/projects/new">Create Project</Link>
+                </Button>
+                <Button 
+                  size="lg" 
+                  variant="outline" 
+                  className="border-white text-white hover:bg-white/10"
+                  asChild
+                >
+                  <Link to="/projects">Browse Projects</Link>
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </section>
