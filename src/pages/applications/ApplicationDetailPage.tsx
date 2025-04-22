@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Layout from "@/components/layout/Layout";
@@ -35,13 +34,12 @@ const ApplicationDetailPage = () => {
           return;
         }
 
-        // Load application details
+        // Load application details with a proper join
         const { data: applicationData, error: applicationError } = await supabase
           .from('project_applications')
           .select(`
             *,
-            projects:project_id(*),
-            applicant:applicant_id(email, avatar_url)
+            projects:project_id(*)
           `)
           .eq('id', applicationId)
           .single();
@@ -58,14 +56,32 @@ const ApplicationDetailPage = () => {
           return;
         }
 
-        setApplication(applicationData);
+        // Fetch applicant details separately
+        const { data: applicantData, error: applicantError } = await supabase
+          .from('profiles')
+          .select('email, avatar_url')
+          .eq('id', applicationData.applicant_id)
+          .single();
+
+        if (applicantError) {
+          console.error('Error fetching applicant:', applicantError);
+        }
+
+        // Combine the data
+        const completeApplication = {
+          ...applicationData,
+          applicant: applicantData || { email: 'Unknown', avatar_url: null }
+        };
+
+        setApplication(completeApplication);
         
         // Check if current user is project owner
-        setIsOwner(applicationData.projects?.creator_id === session.user.id);
+        const projectCreatorId = applicationData.projects?.creator_id;
+        setIsOwner(projectCreatorId === session.user.id);
 
         // If user is neither the applicant nor the project owner, redirect
         if (applicationData.applicant_id !== session.user.id && 
-            applicationData.projects?.creator_id !== session.user.id) {
+            projectCreatorId !== session.user.id) {
           toast.error('You do not have permission to view this application');
           navigate('/dashboard');
         }
