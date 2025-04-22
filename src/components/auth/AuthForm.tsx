@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { z } from "zod";
@@ -20,7 +19,6 @@ import { supabase } from "@/integrations/supabase/client";
 
 type AuthMode = "login" | "signup";
 
-// Define the validation schema
 const loginSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
   password: z.string().min(6, { message: "Password must be at least 6 characters" }),
@@ -41,7 +39,6 @@ const AuthForm = ({ mode }: { mode: AuthMode }) => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
-  // Initialize the form
   const loginForm = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -70,17 +67,33 @@ const AuthForm = ({ mode }: { mode: AuthMode }) => {
       
       if (error) throw error;
       
-      toast.success("Login successful! Welcome back to Co-Brew!");
+      toast.success("Login successful!");
       navigate("/");
-    } catch (error) {
+    } catch (error: any) {
       setIsLoading(false);
-      toast.error(error.message || "Invalid email or password");
+      if (error.message.includes("Invalid login credentials")) {
+        toast.error("Invalid email or password");
+      } else {
+        toast.error(error.message);
+      }
     }
   };
 
   const onSignupSubmit = async (values: SignupFormValues) => {
     setIsLoading(true);
     try {
+      const { data: existingUsers, error: checkError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('email', values.email)
+        .single();
+
+      if (existingUsers) {
+        setIsLoading(false);
+        toast.error("An account with this email already exists");
+        return;
+      }
+
       const { data, error } = await supabase.auth.signUp({
         email: values.email,
         password: values.password,
@@ -93,11 +106,15 @@ const AuthForm = ({ mode }: { mode: AuthMode }) => {
       
       if (error) throw error;
       
-      toast.success("Account created! Please check your email to confirm your account.");
+      toast.success("Account created successfully! Please check your email to verify your account.");
       navigate("/");
-    } catch (error) {
+    } catch (error: any) {
       setIsLoading(false);
-      toast.error(error.message || "Error creating account. Please try again.");
+      if (error.message.includes("User already registered")) {
+        toast.error("An account with this email already exists");
+      } else {
+        toast.error(error.message || "Error creating account. Please try again.");
+      }
     }
   };
 

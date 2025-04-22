@@ -1,4 +1,3 @@
-
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
@@ -10,10 +9,9 @@ const LoginPage = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Check if user is already logged in, redirect to home
     const checkSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (data?.session) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
         navigate('/');
       }
     };
