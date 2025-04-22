@@ -34,7 +34,7 @@ const ApplicationsPage = () => {
         setUser(session.user);
 
         // Load received applications (for projects I own)
-        const { data: projectsData, error: projectsError } = await supabase
+        const { data: myProjects, error: projectsError } = await supabase
           .from('projects')
           .select('id, title')
           .eq('creator_id', session.user.id);
@@ -42,29 +42,41 @@ const ApplicationsPage = () => {
         if (projectsError) {
           console.error('Error fetching projects:', projectsError);
           toast.error("Failed to load your projects");
+          setIsLoading(false);
           return;
         }
 
+        console.log("My projects:", myProjects);
+
         // If user has projects, fetch applications for those projects
         let receivedApplications = [];
-        if (projectsData && projectsData.length > 0) {
-          const projectIds = projectsData.map(p => p.id);
+        if (myProjects && myProjects.length > 0) {
+          const projectIds = myProjects.map(p => p.id);
           
           // Get applications for user's projects
-          const { data: receivedApplicationsData, error: receivedApplicationsError } = await supabase
+          const { data: receivedApps, error: receivedAppsError } = await supabase
             .from('project_applications')
-            .select('*')
+            .select(`
+              id, 
+              project_id, 
+              applicant_id, 
+              message, 
+              status, 
+              created_at
+            `)
             .in('project_id', projectIds);
             
-          if (receivedApplicationsError) {
-            console.error('Error fetching received applications:', receivedApplicationsError);
+          if (receivedAppsError) {
+            console.error('Error fetching received applications:', receivedAppsError);
             toast.error("Failed to load applications for your projects");
-          } else if (receivedApplicationsData && receivedApplicationsData.length > 0) {
+          } else if (receivedApps && receivedApps.length > 0) {
+            console.log("Received applications:", receivedApps);
+            
             // Process each application to add project and applicant info
-            receivedApplications = await Promise.all(
-              receivedApplicationsData.map(async (app) => {
+            const enhancedApps = await Promise.all(
+              receivedApps.map(async (app) => {
                 // Find project details from our already fetched projects
-                const projectInfo = projectsData.find(p => p.id === app.project_id);
+                const projectInfo = myProjects.find(p => p.id === app.project_id);
                 
                 // Get applicant profile
                 const { data: profileData, error: profileError } = await supabase
@@ -84,24 +96,36 @@ const ApplicationsPage = () => {
                 };
               })
             );
+            
+            receivedApplications = enhancedApps;
           }
         }
         
         setApplications(receivedApplications);
+        console.log("Final received applications:", receivedApplications);
 
         // Load sent applications (that I've submitted)
-        const { data: sentApplicationsData, error: sentApplicationsError } = await supabase
+        const { data: sentApps, error: sentAppsError } = await supabase
           .from('project_applications')
-          .select('*')
+          .select(`
+            id, 
+            project_id, 
+            applicant_id, 
+            message, 
+            status, 
+            created_at
+          `)
           .eq('applicant_id', session.user.id);
           
-        if (sentApplicationsError) {
-          console.error('Error fetching sent applications:', sentApplicationsError);
+        if (sentAppsError) {
+          console.error('Error fetching sent applications:', sentAppsError);
           toast.error("Failed to load your submitted applications");
-        } else {
+        } else if (sentApps && sentApps.length > 0) {
+          console.log("Sent applications:", sentApps);
+          
           // If we have sent applications, fetch related project data
-          const enhancedSentApplications = await Promise.all(
-            (sentApplicationsData || []).map(async (app) => {
+          const enhancedSentApps = await Promise.all(
+            sentApps.map(async (app) => {
               // Get project details
               const { data: projectData, error: projectError } = await supabase
                 .from('projects')
@@ -124,7 +148,8 @@ const ApplicationsPage = () => {
             })
           );
           
-          setSentApplications(enhancedSentApplications);
+          setSentApplications(enhancedSentApps);
+          console.log("Final sent applications:", enhancedSentApps);
         }
       } catch (error) {
         console.error('Error loading applications:', error);
@@ -213,7 +238,7 @@ const ApplicationsPage = () => {
                   <CardTitle>Applications for Your Projects</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {applications.length > 0 ? (
+                  {applications && applications.length > 0 ? (
                     <Table>
                       <TableHeader>
                         <TableRow>
@@ -313,7 +338,7 @@ const ApplicationsPage = () => {
                   <CardTitle>Your Sent Applications</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {sentApplications.length > 0 ? (
+                  {sentApplications && sentApplications.length > 0 ? (
                     <div className="divide-y">
                       {sentApplications.map((application) => (
                         <div key={application.id} className="py-4">
