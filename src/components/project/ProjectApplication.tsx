@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { z } from "zod";
@@ -26,9 +25,9 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
 const applicationSchema = z.object({
-  message: z.string()
-    .min(50, { message: "Message must be at least 50 characters" })
-    .max(1000, { message: "Message must be less than 1000 characters" }),
+  introduction: z.string()
+    .min(50, { message: "Introduction must be at least 50 characters" })
+    .max(1000, { message: "Introduction must be less than 1000 characters" }),
   experience: z.string()
     .min(50, { message: "Experience must be at least 50 characters" })
     .max(1000, { message: "Experience must be less than 1000 characters" }),
@@ -52,7 +51,7 @@ const ProjectApplication = ({ projectId, projectTitle }: ProjectApplicationProps
   const form = useForm<ApplicationFormValues>({
     resolver: zodResolver(applicationSchema),
     defaultValues: {
-      message: "",
+      introduction: "",
       experience: "",
       motivation: "",
     },
@@ -61,7 +60,6 @@ const ProjectApplication = ({ projectId, projectTitle }: ProjectApplicationProps
   const onSubmit = async (values: ApplicationFormValues) => {
     setIsLoading(true);
     try {
-      // Get current user
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session?.user) {
@@ -73,26 +71,15 @@ const ProjectApplication = ({ projectId, projectTitle }: ProjectApplicationProps
         navigate('/login');
         return;
       }
-
-      // Combine all messages into one for the database
-      const combinedMessage = `
-Introduction:
-${values.message}
-
-Relevant Experience:
-${values.experience}
-
-Motivation & Availability:
-${values.motivation}
-      `;
       
-      // Insert application into database
       const { data, error } = await supabase
         .from('project_applications')
         .insert({
           project_id: projectId,
           applicant_id: session.user.id,
-          message: combinedMessage,
+          introduction: values.introduction,
+          experience: values.experience,
+          motivation: values.motivation,
           status: 'pending'
         })
         .select();
@@ -133,7 +120,7 @@ ${values.motivation}
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
             <FormField
               control={form.control}
-              name="message"
+              name="introduction"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Introduction Message</FormLabel>

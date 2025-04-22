@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Layout from "@/components/layout/Layout";
@@ -11,26 +10,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-
-const extractMessageSections = (message: string) => {
-  const sections = {
-    introduction: '',
-    experience: '',
-    motivation: ''
-  };
-
-  if (!message) return sections;
-
-  const matches = message.match(/Introduction:\s*([\s\S]*?)\s*(?=Relevant Experience:|$)/);
-  const expMatches = message.match(/Relevant Experience:\s*([\s\S]*?)\s*(?=Motivation & Availability:|$)/);
-  const motMatches = message.match(/Motivation & Availability:\s*([\s\S]*?)$/);
-
-  if (matches) sections.introduction = matches[1].trim();
-  if (expMatches) sections.experience = expMatches[1].trim();
-  if (motMatches) sections.motivation = motMatches[1].trim();
-
-  return sections;
-};
 
 const ApplicationsPage = () => {
   const [applications, setApplications] = useState([]);
@@ -76,7 +55,9 @@ const ApplicationsPage = () => {
               id, 
               project_id, 
               applicant_id, 
-              message, 
+              introduction,
+              experience,
+              motivation,
               status, 
               created_at
             `)
@@ -123,7 +104,9 @@ const ApplicationsPage = () => {
             id, 
             project_id, 
             applicant_id, 
-            message, 
+            introduction,
+            experience,
+            motivation,
             status, 
             created_at
           `)
@@ -261,82 +244,79 @@ const ApplicationsPage = () => {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {applications.map((application) => {
-                          const sections = extractMessageSections(application.message);
-                          return (
-                            <TableRow key={application.id}>
-                              <TableCell className="flex items-center gap-2">
-                                <Avatar className="h-8 w-8">
-                                  <AvatarImage src={application.profiles?.avatar_url} />
-                                  <AvatarFallback>
-                                    {getInitials(application.profiles?.email)}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <span>{application.profiles?.email}</span>
-                              </TableCell>
-                              <TableCell>
-                                <Link 
-                                  to={`/projects/${application.project_id}`}
-                                  className="text-cobrew-600 hover:text-cobrew-800 font-medium"
+                        {applications.map((application) => (
+                          <TableRow key={application.id}>
+                            <TableCell className="flex items-center gap-2">
+                              <Avatar className="h-8 w-8">
+                                <AvatarImage src={application.profiles?.avatar_url} />
+                                <AvatarFallback>
+                                  {getInitials(application.profiles?.email)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <span>{application.profiles?.email}</span>
+                            </TableCell>
+                            <TableCell>
+                              <Link 
+                                to={`/projects/${application.project_id}`}
+                                className="text-cobrew-600 hover:text-cobrew-800 font-medium"
+                              >
+                                {application.projects?.title}
+                              </Link>
+                            </TableCell>
+                            <TableCell className="max-w-[200px] truncate">
+                              {application.introduction}
+                            </TableCell>
+                            <TableCell className="max-w-[200px] truncate">
+                              {application.experience}
+                            </TableCell>
+                            <TableCell className="max-w-[200px] truncate">
+                              {application.motivation}
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                className={
+                                  application.status === 'accepted' 
+                                    ? 'bg-green-100 text-green-800' 
+                                    : application.status === 'rejected'
+                                    ? 'bg-red-100 text-red-800'
+                                    : 'bg-yellow-100 text-yellow-800'
+                                }
+                              >
+                                {application.status === 'pending' ? 'Pending Review' : 
+                                 application.status === 'accepted' ? 'Accepted' : 'Rejected'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => navigate(`/applications/${application.id}`)}
                                 >
-                                  {application.projects?.title}
-                                </Link>
-                              </TableCell>
-                              <TableCell className="max-w-[200px] truncate">
-                                {sections.introduction}
-                              </TableCell>
-                              <TableCell className="max-w-[200px] truncate">
-                                {sections.experience}
-                              </TableCell>
-                              <TableCell className="max-w-[200px] truncate">
-                                {sections.motivation}
-                              </TableCell>
-                              <TableCell>
-                                <Badge
-                                  className={
-                                    application.status === 'accepted' 
-                                      ? 'bg-green-100 text-green-800' 
-                                      : application.status === 'rejected'
-                                      ? 'bg-red-100 text-red-800'
-                                      : 'bg-yellow-100 text-yellow-800'
-                                  }
-                                >
-                                  {application.status === 'pending' ? 'Pending Review' : 
-                                   application.status === 'accepted' ? 'Accepted' : 'Rejected'}
-                                </Badge>
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex gap-2">
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => navigate(`/applications/${application.id}`)}
-                                  >
-                                    View
-                                  </Button>
-                                  {application.status === 'pending' && (
-                                    <>
-                                      <Button 
-                                        size="sm" 
-                                        className="bg-green-600 hover:bg-green-700"
-                                        onClick={() => handleStatusUpdate(application.id, 'accepted')}
-                                      >
-                                        Accept
-                                      </Button>
-                                      <Button 
-                                        size="sm" 
-                                        variant="destructive"
-                                        onClick={() => handleStatusUpdate(application.id, 'rejected')}
-                                      >
-                                        Reject
-                                      </Button>
-                                    </>
-                                  )}
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
+                                  View
+                                </Button>
+                                {application.status === 'pending' && (
+                                  <>
+                                    <Button 
+                                      size="sm" 
+                                      className="bg-green-600 hover:bg-green-700"
+                                      onClick={() => handleStatusUpdate(application.id, 'accepted')}
+                                    >
+                                      Accept
+                                    </Button>
+                                    <Button 
+                                      size="sm" 
+                                      variant="destructive"
+                                      onClick={() => handleStatusUpdate(application.id, 'rejected')}
+                                    >
+                                      Reject
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
                       </TableBody>
                     </Table>
                   ) : (
@@ -363,7 +343,6 @@ const ApplicationsPage = () => {
                   {sentApplications && sentApplications.length > 0 ? (
                     <div className="divide-y">
                       {sentApplications.map((application) => {
-                        const sections = extractMessageSections(application.message);
                         return (
                           <div key={application.id} className="py-4">
                             <div className="flex justify-between mb-2">
@@ -392,15 +371,15 @@ const ApplicationsPage = () => {
                             <div className="grid grid-cols-3 gap-4">
                               <div>
                                 <h4 className="font-medium mb-2">Introduction</h4>
-                                <p className="text-gray-700 line-clamp-3">{sections.introduction}</p>
+                                <p className="text-gray-700 line-clamp-3">{application.introduction}</p>
                               </div>
                               <div>
                                 <h4 className="font-medium mb-2">Experience</h4>
-                                <p className="text-gray-700 line-clamp-3">{sections.experience}</p>
+                                <p className="text-gray-700 line-clamp-3">{application.experience}</p>
                               </div>
                               <div>
                                 <h4 className="font-medium mb-2">Motivation</h4>
-                                <p className="text-gray-700 line-clamp-3">{sections.motivation}</p>
+                                <p className="text-gray-700 line-clamp-3">{application.motivation}</p>
                               </div>
                             </div>
                           </div>

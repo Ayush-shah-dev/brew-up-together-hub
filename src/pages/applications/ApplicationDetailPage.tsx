@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Layout from "@/components/layout/Layout";
@@ -191,45 +190,63 @@ const ApplicationDetailPage = () => {
           <Card className="mb-6">
             <CardHeader className="pb-2">
               <div className="flex justify-between items-start">
-                <CardTitle>{application.projects?.title || "Project"}</CardTitle>
+                <CardTitle>{application?.projects?.title || "Project"}</CardTitle>
                 <Badge
                   className={
-                    application.status === 'accepted' 
+                    application?.status === 'accepted' 
                       ? 'bg-green-100 text-green-800' 
-                      : application.status === 'rejected'
+                      : application?.status === 'rejected'
                       ? 'bg-red-100 text-red-800'
                       : 'bg-yellow-100 text-yellow-800'
                   }
                 >
-                  {application.status === 'pending' ? 'Pending Review' : 
-                   application.status === 'accepted' ? 'Accepted' : 'Rejected'}
+                  {application?.status === 'pending' ? 'Pending Review' : 
+                   application?.status === 'accepted' ? 'Accepted' : 'Rejected'}
                 </Badge>
               </div>
             </CardHeader>
             <CardContent>
               <div className="flex items-center mb-4">
                 <Avatar className="h-10 w-10">
-                  <AvatarImage src={application.applicant?.avatar_url} />
+                  <AvatarImage src={application?.applicant?.avatar_url} />
                   <AvatarFallback>
-                    {getInitials(application.applicant?.email)}
+                    {getInitials(application?.applicant?.email)}
                   </AvatarFallback>
                 </Avatar>
                 <div className="ml-3">
-                  <div className="font-medium">{application.applicant?.email}</div>
-                  <div className="text-sm text-gray-500">Applied on {formatDate(application.created_at)}</div>
+                  <div className="font-medium">{application?.applicant?.email}</div>
+                  <div className="text-sm text-gray-500">
+                    Applied on {formatDate(application?.created_at)}
+                  </div>
                 </div>
               </div>
               
               <Separator className="my-4" />
               
-              <div className="prose max-w-none">
-                <h3 className="text-lg font-medium mb-2">Application Message</h3>
-                <div className="whitespace-pre-line text-gray-700">
-                  {application.message}
+              <div className="grid grid-cols-1 gap-6">
+                <div>
+                  <h3 className="text-lg font-medium mb-2">Introduction</h3>
+                  <p className="text-gray-700 whitespace-pre-line">
+                    {application?.introduction}
+                  </p>
+                </div>
+                
+                <div>
+                  <h3 className="text-lg font-medium mb-2">Experience</h3>
+                  <p className="text-gray-700 whitespace-pre-line">
+                    {application?.experience}
+                  </p>
+                </div>
+                
+                <div>
+                  <h3 className="text-lg font-medium mb-2">Motivation</h3>
+                  <p className="text-gray-700 whitespace-pre-line">
+                    {application?.motivation}
+                  </p>
                 </div>
               </div>
               
-              {isOwner && application.status === 'pending' && (
+              {isOwner && application?.status === 'pending' && (
                 <div className="mt-6 flex justify-end gap-3">
                   <Button
                     variant="destructive"
@@ -253,7 +270,7 @@ const ApplicationDetailPage = () => {
               <CardTitle>About the Project</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-gray-700 mb-4">{application.projects?.description || "No description available."}</p>
+              <p className="text-gray-700 mb-4">{application?.projects?.description || "No description available."}</p>
               <Button 
                 className="bg-cobrew-600 hover:bg-cobrew-700"
                 onClick={() => navigate(`/projects/${application.project_id}`)}

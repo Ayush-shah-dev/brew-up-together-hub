@@ -91,8 +91,10 @@ export type Database = {
         Row: {
           applicant_id: string
           created_at: string | null
+          experience: string | null
           id: string
-          message: string | null
+          introduction: string | null
+          motivation: string | null
           project_id: string
           status: string
           updated_at: string | null
@@ -100,8 +102,10 @@ export type Database = {
         Insert: {
           applicant_id: string
           created_at?: string | null
+          experience?: string | null
           id?: string
-          message?: string | null
+          introduction?: string | null
+          motivation?: string | null
           project_id: string
           status?: string
           updated_at?: string | null
@@ -109,8 +113,10 @@ export type Database = {
         Update: {
           applicant_id?: string
           created_at?: string | null
+          experience?: string | null
           id?: string
-          message?: string | null
+          introduction?: string | null
+          motivation?: string | null
           project_id?: string
           status?: string
           updated_at?: string | null
