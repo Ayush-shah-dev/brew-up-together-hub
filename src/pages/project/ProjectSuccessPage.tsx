@@ -1,10 +1,41 @@
 
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
 import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { CheckCircle } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 const ProjectSuccessPage = () => {
+  const [latestProject, setLatestProject] = useState(null);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchLatestProject = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        navigate('/login');
+        return;
+      }
+      
+      // Get the user's most recently created project
+      const { data, error } = await supabase
+        .from('projects')
+        .select('title, id')
+        .eq('creator_id', session.user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+        
+      if (data && !error) {
+        setLatestProject(data);
+      }
+    };
+    
+    fetchLatestProject();
+  }, [navigate]);
+
   return (
     <Layout>
       <div className="min-h-screen py-16 flex items-center justify-center bg-gray-50">
@@ -13,8 +44,16 @@ const ProjectSuccessPage = () => {
             <CheckCircle className="h-16 w-16 text-green-500" />
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-4">Project Created!</h1>
+          
+          {latestProject && (
+            <div className="bg-white p-4 rounded-lg border border-gray-200 mb-6">
+              <h2 className="font-medium text-lg text-cobrew-700">{latestProject.title}</h2>
+              <p className="text-sm text-gray-600 mt-1">Your project has been successfully created</p>
+            </div>
+          )}
+          
           <p className="text-gray-600 mb-8">
-            Your project has been successfully created and is now visible to potential collaborators.
+            Your project is now visible to potential collaborators.
           </p>
           
           <div className="space-y-4">

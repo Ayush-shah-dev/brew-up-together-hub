@@ -30,9 +30,10 @@ const DashboardPage = () => {
         loadDashboardData(session.user.id);
       } else {
         setIsLoading(false);
+        navigate('/login');
       }
     });
-  }, []);
+  }, [navigate]);
 
   const loadDashboardData = async (userId) => {
     try {
@@ -47,6 +48,7 @@ const DashboardPage = () => {
       
       if (profileError) {
         console.error('Error fetching profile:', profileError);
+        toast.error("Failed to load profile data");
       } else {
         setUserProfile(profileData);
       }
@@ -59,6 +61,7 @@ const DashboardPage = () => {
       
       if (projectsError) {
         console.error('Error fetching projects:', projectsError);
+        toast.error("Failed to load project data");
       } else {
         // Format projects for ProjectCard component
         const formattedProjects = projectsData ? projectsData.map(project => ({
@@ -79,11 +82,21 @@ const DashboardPage = () => {
         setProjects(formattedProjects);
       }
       
+      // Load applications
+      const { data: applicationsData, error: applicationsError } = await supabase
+        .from('project_applications')
+        .select('*')
+        .eq('applicant_id', userId);
+        
+      if (applicationsError) {
+        console.error('Error fetching applications:', applicationsError);
+      }
+      
       // Set user stats
       setStats({
         projectsCreated: projectsData?.length || 0,
         projectsJoined: 0,
-        applicationsPending: 0,
+        applicationsPending: applicationsData?.length || 0,
         messagesUnread: 0
       });
       
@@ -140,227 +153,206 @@ const DashboardPage = () => {
 
   return (
     <Layout requireAuth={true}>
-      {isLoading ? (
-        <div className="min-h-screen py-16 bg-gray-50">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex flex-col md:flex-row gap-6">
-              <div className="md:w-1/4">
-                <Skeleton className="h-64 w-full rounded-lg" />
-                <Skeleton className="h-64 w-full rounded-lg mt-6" />
-              </div>
-              <div className="md:w-3/4">
-                <Skeleton className="h-12 w-full rounded-lg mb-6" />
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {[1, 2, 3, 4].map((i) => (
-                    <Skeleton key={i} className="h-64 w-full rounded-lg" />
-                  ))}
-                </div>
-              </div>
+      <div className="min-h-screen py-16 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col md:flex-row gap-6">
+            {/* Sidebar */}
+            <div className="md:w-1/4 space-y-6">
+              {/* User Profile Card */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <div className="flex items-center">
+                    <Avatar className="h-12 w-12">
+                      <AvatarImage src={userProfile?.avatar_url} />
+                      <AvatarFallback className="bg-cobrew-100 text-cobrew-800">
+                        {getInitials(userProfile?.email || "")}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="ml-3">
+                      <CardTitle className="text-lg">{userProfile?.email}</CardTitle>
+                      <CardDescription>Student</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-gray-600 mb-4">
+                    {userProfile?.bio || "No bio yet. Complete your profile to add more information."}
+                  </p>
+                  <Button 
+                    variant="outline" 
+                    className="w-full"
+                    asChild
+                  >
+                    <Link to="/profile">View Profile</Link>
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Dashboard Stats */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Your Activity</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Projects Created</span>
+                    <Badge variant="secondary" className="bg-cobrew-50 text-cobrew-800">
+                      {stats?.projectsCreated || 0}
+                    </Badge>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Projects Joined</span>
+                    <Badge variant="secondary" className="bg-cobrew-50 text-cobrew-800">
+                      {stats?.projectsJoined || 0}
+                    </Badge>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Pending Applications</span>
+                    <Badge variant="secondary" className="bg-cobrew-50 text-cobrew-800">
+                      {stats?.applicationsPending || 0}
+                    </Badge>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Unread Messages</span>
+                    <Badge variant="secondary" className="bg-cobrew-50 text-cobrew-800">
+                      {stats?.messagesUnread || 0}
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Quick Actions */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Quick Actions</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <Button 
+                    className="w-full bg-cobrew-600 hover:bg-cobrew-700"
+                    asChild
+                  >
+                    <Link to="/projects/new">Create New Project</Link>
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    className="w-full"
+                    asChild
+                  >
+                    <Link to="/projects">Browse Projects</Link>
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    className="w-full"
+                    asChild
+                  >
+                    <Link to="/messages">Check Messages</Link>
+                  </Button>
+                </CardContent>
+              </Card>
             </div>
-          </div>
-        </div>
-      ) : (
-        <div className="min-h-screen py-16 bg-gray-50">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex flex-col md:flex-row gap-6">
-              {/* Sidebar */}
-              <div className="md:w-1/4 space-y-6">
-                {/* User Profile Card */}
-                <Card>
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center">
-                      <Avatar className="h-12 w-12">
-                        <AvatarImage src={userProfile?.avatar_url} />
-                        <AvatarFallback className="bg-cobrew-100 text-cobrew-800">
-                          {getInitials(userProfile?.email || "")}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="ml-3">
-                        <CardTitle className="text-lg">{userProfile?.email}</CardTitle>
-                        <CardDescription>Student</CardDescription>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-gray-600 mb-4">
-                      {userProfile?.bio || "No bio yet. Complete your profile to add more information."}
-                    </p>
-                    <Button 
-                      variant="outline" 
-                      className="w-full"
-                      asChild
-                    >
-                      <Link to="/profile">View Profile</Link>
-                    </Button>
-                  </CardContent>
-                </Card>
 
-                {/* Dashboard Stats */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Your Activity</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Projects Created</span>
-                      <Badge variant="secondary" className="bg-cobrew-50 text-cobrew-800">
-                        {stats?.projectsCreated || 0}
-                      </Badge>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Projects Joined</span>
-                      <Badge variant="secondary" className="bg-cobrew-50 text-cobrew-800">
-                        {stats?.projectsJoined || 0}
-                      </Badge>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Pending Applications</span>
-                      <Badge variant="secondary" className="bg-cobrew-50 text-cobrew-800">
-                        {stats?.applicationsPending || 0}
-                      </Badge>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Unread Messages</span>
-                      <Badge variant="secondary" className="bg-cobrew-50 text-cobrew-800">
-                        {stats?.messagesUnread || 0}
-                      </Badge>
-                    </div>
-                  </CardContent>
-                </Card>
+            {/* Main Content */}
+            <div className="md:w-3/4">
+              <Tabs defaultValue="projects">
+                <TabsList className="w-full bg-white rounded-lg mb-6">
+                  <TabsTrigger value="projects">My Projects</TabsTrigger>
+                  <TabsTrigger value="collaborations">Collaborations</TabsTrigger>
+                  <TabsTrigger value="applications">Applications</TabsTrigger>
+                  <TabsTrigger value="notifications">Notifications</TabsTrigger>
+                </TabsList>
 
-                {/* Quick Actions */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Quick Actions</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <Button 
-                      className="w-full bg-cobrew-600 hover:bg-cobrew-700"
-                      asChild
-                    >
-                      <Link to="/projects/new">Create New Project</Link>
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      className="w-full"
-                      asChild
-                    >
-                      <Link to="/projects">Browse Projects</Link>
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      className="w-full"
-                      asChild
-                    >
-                      <Link to="/messages">Check Messages</Link>
-                    </Button>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Main Content */}
-              <div className="md:w-3/4">
-                <Tabs defaultValue="projects">
-                  <TabsList className="w-full bg-white rounded-lg mb-6">
-                    <TabsTrigger value="projects">My Projects</TabsTrigger>
-                    <TabsTrigger value="collaborations">Collaborations</TabsTrigger>
-                    <TabsTrigger value="applications">Applications</TabsTrigger>
-                    <TabsTrigger value="notifications">Notifications</TabsTrigger>
-                  </TabsList>
-
-                  {/* My Projects Tab */}
-                  <TabsContent value="projects">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {projects.length > 0 ? (
-                        projects.map((project) => (
-                          <ProjectCard
-                            key={project.id}
-                            id={project.id}
-                            title={project.title}
-                            description={project.description}
-                            stage={project.stage}
-                            owner={project.owner}
-                            skills={project.skills}
-                            createdAt={project.createdAt}
-                            isOwner={project.isOwner}
-                          />
-                        ))
-                      ) : (
-                        <div className="col-span-2 bg-white rounded-lg p-8 text-center">
-                          <h3 className="text-lg font-medium text-gray-900 mb-2">No projects yet</h3>
-                          <p className="text-gray-600 mb-6">
-                            Start your entrepreneurial journey by creating your first project
-                          </p>
-                          <Button 
-                            className="bg-cobrew-600 hover:bg-cobrew-700"
-                            asChild
-                          >
-                            <Link to="/projects/new">Create Project</Link>
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  </TabsContent>
-
-                  {/* Collaborations Tab */}
-                  <TabsContent value="collaborations">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* My Projects Tab */}
+                <TabsContent value="projects">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {projects.length > 0 ? (
+                      projects.map((project) => (
+                        <ProjectCard
+                          key={project.id}
+                          id={project.id}
+                          title={project.title}
+                          description={project.description}
+                          stage={project.stage}
+                          owner={project.owner}
+                          skills={project.skills}
+                          createdAt={project.createdAt}
+                          isOwner={project.isOwner}
+                        />
+                      ))
+                    ) : (
                       <div className="col-span-2 bg-white rounded-lg p-8 text-center">
-                        <h3 className="text-lg font-medium text-gray-900 mb-2">No collaborations yet</h3>
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">No projects yet</h3>
                         <p className="text-gray-600 mb-6">
-                          Join projects that match your skills and interests
+                          Start your entrepreneurial journey by creating your first project
                         </p>
                         <Button 
                           className="bg-cobrew-600 hover:bg-cobrew-700"
                           asChild
                         >
-                          <Link to="/projects">Browse Projects</Link>
+                          <Link to="/projects/new">Create Project</Link>
                         </Button>
                       </div>
-                    </div>
-                  </TabsContent>
+                    )}
+                  </div>
+                </TabsContent>
 
-                  {/* Applications Tab */}
-                  <TabsContent value="applications">
-                    <div className="bg-white rounded-lg overflow-hidden">
-                      <div className="p-4 border-b">
-                        <h3 className="font-medium">Your Applications</h3>
-                      </div>
-                      <div className="p-8 text-center">
-                        <h3 className="text-lg font-medium text-gray-900 mb-2">No applications yet</h3>
-                        <p className="text-gray-600 mb-6">
-                          Apply to projects that match your skills and interests
-                        </p>
-                        <Button 
-                          className="bg-cobrew-600 hover:bg-cobrew-700"
-                          asChild
-                        >
-                          <Link to="/projects">Browse Projects</Link>
-                        </Button>
-                      </div>
+                {/* Collaborations Tab */}
+                <TabsContent value="collaborations">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="col-span-2 bg-white rounded-lg p-8 text-center">
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No collaborations yet</h3>
+                      <p className="text-gray-600 mb-6">
+                        Join projects that match your skills and interests
+                      </p>
+                      <Button 
+                        className="bg-cobrew-600 hover:bg-cobrew-700"
+                        asChild
+                      >
+                        <Link to="/projects">Browse Projects</Link>
+                      </Button>
                     </div>
-                  </TabsContent>
+                  </div>
+                </TabsContent>
 
-                  {/* Notifications Tab */}
-                  <TabsContent value="notifications">
-                    <div className="bg-white rounded-lg overflow-hidden">
-                      <div className="p-4 border-b">
-                        <h3 className="font-medium">Recent Notifications</h3>
-                      </div>
-                      <div className="p-8 text-center">
-                        <h3 className="text-lg font-medium text-gray-900 mb-2">No notifications</h3>
-                        <p className="text-gray-600">
-                          You're all caught up! You'll see notifications about your projects, applications, and messages here.
-                        </p>
-                      </div>
+                {/* Applications Tab */}
+                <TabsContent value="applications">
+                  <div className="bg-white rounded-lg overflow-hidden">
+                    <div className="p-4 border-b">
+                      <h3 className="font-medium">Your Applications</h3>
                     </div>
-                  </TabsContent>
-                </Tabs>
-              </div>
+                    <div className="p-8 text-center">
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No applications yet</h3>
+                      <p className="text-gray-600 mb-6">
+                        Apply to projects that match your skills and interests
+                      </p>
+                      <Button 
+                        className="bg-cobrew-600 hover:bg-cobrew-700"
+                        asChild
+                      >
+                        <Link to="/projects">Browse Projects</Link>
+                      </Button>
+                    </div>
+                  </div>
+                </TabsContent>
+
+                {/* Notifications Tab */}
+                <TabsContent value="notifications">
+                  <div className="bg-white rounded-lg overflow-hidden">
+                    <div className="p-4 border-b">
+                      <h3 className="font-medium">Recent Notifications</h3>
+                    </div>
+                    <div className="p-8 text-center">
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No notifications</h3>
+                      <p className="text-gray-600">
+                        You're all caught up! You'll see notifications about your projects, applications, and messages here.
+                      </p>
+                    </div>
+                  </div>
+                </TabsContent>
+              </Tabs>
             </div>
           </div>
         </div>
-      )}
+      </div>
     </Layout>
   );
 };

@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { z } from "zod";
@@ -31,7 +30,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 // Define the validation schema
 const projectFormSchema = z.object({
@@ -105,7 +105,6 @@ const ProjectForm = ({
 }) => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
-  const { toast } = useToast();
 
   // Initialize the form with default values or editing data
   const form = useForm<ProjectFormValues>({
@@ -129,26 +128,51 @@ const ProjectForm = ({
   const onSubmit = async (values: ProjectFormValues) => {
     setIsLoading(true);
     try {
-      // After Supabase integration, we will add actual project create/update logic here
-      console.log("Project form values:", values);
+      // Get the current user session
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        toast.error("You must be logged in to create a project");
+        navigate("/login");
+        return;
+      }
+
+      // Create the project in Supabase
+      const { data, error } = await supabase
+        .from('projects')
+        .insert({
+          title: values.title,
+          description: values.description,
+          creator_id: session.user.id,
+          stage: values.stage,
+          category: values.requiredSkills[0] || "Other", // Using first skill as category for now
+          roles_needed: values.requiredSkills,
+          tags: [values.teamSize, values.commitment, values.compensation, values.isRemote ? "Remote" : "On-site"]
+        });
+      
+      if (error) {
+        console.error("Error creating project:", error);
+        toast.error("Failed to create project: " + error.message);
+        setIsLoading(false);
+        return;
+      }
       
       toast({
         title: isEditing ? "Project updated" : "Project created",
         description: isEditing ? "Your project has been updated successfully" : "Your project has been created successfully",
       });
       
-      // Simulate successful operation for now
-      setTimeout(() => {
-        setIsLoading(false);
-        navigate(isEditing ? "/dashboard" : "/projects/success");
-      }, 1500);
+      navigate(isEditing ? "/dashboard" : "/projects/success");
     } catch (error) {
+      console.error("Error in project creation:", error);
       setIsLoading(false);
       toast({
         title: isEditing ? "Failed to update project" : "Failed to create project",
         description: "An error occurred. Please try again.",
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
