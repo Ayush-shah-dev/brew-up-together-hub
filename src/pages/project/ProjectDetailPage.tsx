@@ -10,59 +10,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ProjectStage } from "@/components/project/ProjectCard";
-
-// Mock project data - will be replaced with Supabase data
-const MOCK_PROJECT = {
-  id: "1",
-  title: "AI-Powered Meal Planning App",
-  summary: "An app using AI to create personalized meal plans based on dietary preferences and goals.",
-  description: `We're building a mobile application that uses machine learning algorithms to create personalized meal plans for users based on their dietary preferences, allergies, nutritional goals, and even what ingredients they currently have in their kitchen.
-
-The app will include features such as:
-- Personalized recipe recommendations
-- Smart shopping lists that minimize food waste
-- Meal prep guidance with step-by-step instructions
-- Nutrition tracking and analysis
-- Integration with grocery delivery services
-- Community features to share and discover recipes
-
-We're currently in the prototype stage and have wireframes and a basic ML model for recipe classification. We're looking for React Native developers, UI/UX designers, and backend developers with experience in recommendation systems to join our team.
-
-The ideal collaborators would be passionate about food, nutrition, or sustainability and able to commit 5-15 hours per week to the project.`,
-  stage: "prototype" as ProjectStage,
-  owner: {
-    id: "101",
-    name: "Emma Johnson",
-    title: "Full Stack Developer",
-    avatarUrl: "",
-  },
-  website: "https://mealplannerapp.demo",
-  repo: "https://github.com/emmajohnson/meal-planner",
-  requiredSkills: ["React Native", "Machine Learning", "UI/UX Design", "Node.js", "MongoDB", "Python"],
-  teamSize: "small",
-  commitment: "medium",
-  compensation: "equity",
-  isRemote: true,
-  createdAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
-  updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-  isOwner: false,
-  hasApplied: false,
-  team: [
-    {
-      id: "101",
-      name: "Emma Johnson",
-      title: "Project Lead & Full Stack Developer",
-      avatarUrl: "",
-    },
-    {
-      id: "102",
-      name: "David Chen",
-      title: "ML Engineer",
-      avatarUrl: "",
-    },
-  ],
-  applications: 5,
-};
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const stageLabels: Record<ProjectStage, string> = {
   idea: "Idea Stage",
@@ -97,23 +46,124 @@ const ProjectDetailPage = () => {
   const { projectId } = useParams();
   const [project, setProject] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [owner, setOwner] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [hasApplied, setHasApplied] = useState(false);
+  const [teamMembers, setTeamMembers] = useState([]);
+  const [applicationCount, setApplicationCount] = useState(0);
 
   useEffect(() => {
-    // Simulate loading project data
-    const loadProject = async () => {
+    const loadUserAndProject = async () => {
       try {
-        // After Supabase integration, this will fetch actual project data based on projectId
-        setTimeout(() => {
-          setProject(MOCK_PROJECT);
+        setIsLoading(true);
+        
+        // Get current user
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          setCurrentUser(session.user);
+        }
+
+        if (!projectId) return;
+
+        // Fetch project
+        const { data: projectData, error: projectError } = await supabase
+          .from('projects')
+          .select('*')
+          .eq('id', projectId)
+          .single();
+        
+        if (projectError) {
+          console.error("Error loading project:", projectError);
+          toast("Error loading project");
           setIsLoading(false);
-        }, 800);
+          return;
+        }
+
+        if (!projectData) {
+          setIsLoading(false);
+          return;
+        }
+
+        // Fetch owner profile
+        const { data: ownerData, error: ownerError } = await supabase
+          .from('profiles')
+          .select('id, email, avatar_url')
+          .eq('id', projectData.creator_id)
+          .single();
+        
+        if (ownerError && ownerError.code !== 'PGRST116') {
+          console.error("Error loading owner:", ownerError);
+        }
+
+        // Check if user has applied
+        if (session?.user) {
+          const { data: applicationData, error: applicationError } = await supabase
+            .from('project_applications')
+            .select('id')
+            .eq('project_id', projectId)
+            .eq('applicant_id', session.user.id);
+          
+          if (!applicationError && applicationData && applicationData.length > 0) {
+            setHasApplied(true);
+          }
+        }
+
+        // Get application count
+        const { count, error: countError } = await supabase
+          .from('project_applications')
+          .select('id', { count: 'exact', head: true })
+          .eq('project_id', projectId);
+        
+        if (!countError) {
+          setApplicationCount(count || 0);
+        }
+
+        // Set owner info
+        const ownerInfo = ownerData ? {
+          id: ownerData.id,
+          name: ownerData.email?.split('@')[0] || "Project Owner",
+          title: "Project Owner",
+          avatarUrl: ownerData.avatar_url || "",
+        } : {
+          id: projectData.creator_id,
+          name: "Project Owner",
+          title: "Project Owner",
+          avatarUrl: "",
+        };
+
+        setOwner(ownerInfo);
+
+        // For now, just set team members to owner
+        // In a real app, you'd fetch actual team members from a team_members table
+        setTeamMembers([ownerInfo]);
+
+        // Format the project data
+        const formattedProject = {
+          ...projectData,
+          owner: ownerInfo,
+          isOwner: session?.user?.id === projectData.creator_id,
+          hasApplied: hasApplied,
+          team: [ownerInfo],
+          applications: count || 0,
+          website: "", // These fields don't exist in our DB yet
+          repo: "", // These fields don't exist in our DB yet
+          teamSize: projectData.tags?.[0] || "solo",
+          commitment: projectData.tags?.[1] || "medium",
+          compensation: projectData.tags?.[2] || "none",
+          isRemote: projectData.tags?.[3] === "Remote",
+          requiredSkills: projectData.roles_needed || [],
+        };
+
+        setProject(formattedProject);
       } catch (error) {
         console.error("Error loading project:", error);
+        toast("Error loading project details");
+      } finally {
         setIsLoading(false);
       }
     };
 
-    loadProject();
+    loadUserAndProject();
   }, [projectId]);
 
   const formatDate = (dateString) => {
@@ -196,7 +246,7 @@ const ProjectDetailPage = () => {
                     {stageLabels[project.stage]}
                   </Badge>
                   <h1 className="text-2xl font-bold text-gray-900">{project.title}</h1>
-                  <p className="text-gray-600 mt-1">{project.summary}</p>
+                  <p className="text-gray-600 mt-1">{project.description}</p>
                   
                   <div className="flex items-center mt-4">
                     <Avatar className="h-8 w-8">
@@ -216,13 +266,13 @@ const ProjectDetailPage = () => {
                     </div>
                     <span className="mx-2 text-gray-400">•</span>
                     <span className="text-xs text-gray-500">
-                      Created {formatDate(project.createdAt)}
+                      Created {formatDate(project.created_at)}
                     </span>
-                    {project.updatedAt && (
+                    {project.updated_at && (
                       <>
                         <span className="mx-2 text-gray-400">•</span>
                         <span className="text-xs text-gray-500">
-                          Updated {formatDate(project.updatedAt)}
+                          Updated {formatDate(project.updated_at)}
                         </span>
                       </>
                     )}
