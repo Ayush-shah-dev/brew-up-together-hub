@@ -132,7 +132,7 @@ const ProjectForm = ({
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session) {
-        toast.error("You must be logged in to create a project");
+        toast("You must be logged in to create a project");
         navigate("/login");
         return;
       }
@@ -152,25 +152,18 @@ const ProjectForm = ({
       
       if (error) {
         console.error("Error creating project:", error);
-        toast.error("Failed to create project: " + error.message);
+        toast("Failed to create project: " + error.message);
         setIsLoading(false);
         return;
       }
       
-      toast({
-        title: isEditing ? "Project updated" : "Project created",
-        description: isEditing ? "Your project has been updated successfully" : "Your project has been created successfully",
-      });
+      toast(isEditing ? "Project updated successfully" : "Project created successfully");
       
       navigate(isEditing ? "/dashboard" : "/projects/success");
     } catch (error) {
       console.error("Error in project creation:", error);
       setIsLoading(false);
-      toast({
-        title: isEditing ? "Failed to update project" : "Failed to create project",
-        description: "An error occurred. Please try again.",
-        variant: "destructive",
-      });
+      toast("Failed to " + (isEditing ? "update" : "create") + " project. Please try again.");
     } finally {
       setIsLoading(false);
     }
