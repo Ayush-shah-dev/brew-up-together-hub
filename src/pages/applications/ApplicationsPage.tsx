@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Layout from "@/components/layout/Layout";
@@ -25,12 +26,15 @@ const ApplicationsPage = () => {
         
         const { data: { session } } = await supabase.auth.getSession();
         if (!session?.user) {
+          toast.error("Please log in to view applications");
           navigate('/login');
           return;
         }
         
         setUser(session.user);
+        console.log("Current user ID:", session.user.id);
 
+        // Fetch projects created by the current user
         const { data: myProjects, error: projectsError } = await supabase
           .from('projects')
           .select('id, title')
@@ -45,7 +49,7 @@ const ApplicationsPage = () => {
 
         console.log("My projects:", myProjects);
 
-        let receivedApplications = [];
+        // Fetch applications for user's projects
         if (myProjects && myProjects.length > 0) {
           const projectIds = myProjects.map(p => p.id);
           
@@ -66,38 +70,43 @@ const ApplicationsPage = () => {
           if (receivedAppsError) {
             console.error('Error fetching received applications:', receivedAppsError);
             toast.error("Failed to load applications for your projects");
-          } else if (receivedApps && receivedApps.length > 0) {
+          } else {
             console.log("Received applications:", receivedApps);
             
-            const enhancedApps = await Promise.all(
-              receivedApps.map(async (app) => {
-                const projectInfo = myProjects.find(p => p.id === app.project_id);
-                
-                const { data: profileData, error: profileError } = await supabase
-                  .from('profiles')
-                  .select('email, avatar_url')
-                  .eq('id', app.applicant_id)
-                  .single();
-                
-                if (profileError) {
-                  console.error('Error fetching applicant profile:', profileError);
-                }
-                
-                return {
-                  ...app,
-                  projects: projectInfo || { title: "Unknown Project" },
-                  profiles: profileData || { email: "Unknown", avatar_url: null }
-                };
-              })
-            );
-            
-            receivedApplications = enhancedApps;
+            // If there are applications, fetch additional details for each
+            if (receivedApps && receivedApps.length > 0) {
+              const enhancedApps = await Promise.all(
+                receivedApps.map(async (app) => {
+                  const projectInfo = myProjects.find(p => p.id === app.project_id);
+                  
+                  const { data: profileData, error: profileError } = await supabase
+                    .from('profiles')
+                    .select('email, avatar_url')
+                    .eq('id', app.applicant_id)
+                    .single();
+                  
+                  if (profileError) {
+                    console.error('Error fetching applicant profile:', profileError);
+                  }
+                  
+                  return {
+                    ...app,
+                    projects: projectInfo || { title: "Unknown Project" },
+                    profiles: profileData || { email: "Unknown", avatar_url: null }
+                  };
+                })
+              );
+              
+              setApplications(enhancedApps);
+            } else {
+              setApplications([]);
+            }
           }
+        } else {
+          setApplications([]);
         }
         
-        setApplications(receivedApplications);
-        console.log("Final received applications:", receivedApplications);
-
+        // Fetch applications sent by the current user
         const { data: sentApps, error: sentAppsError } = await supabase
           .from('project_applications')
           .select(`
@@ -115,34 +124,36 @@ const ApplicationsPage = () => {
         if (sentAppsError) {
           console.error('Error fetching sent applications:', sentAppsError);
           toast.error("Failed to load your submitted applications");
-        } else if (sentApps && sentApps.length > 0) {
-          console.log("Sent applications:", sentApps);
-          
-          const enhancedSentApps = await Promise.all(
-            sentApps.map(async (app) => {
-              const { data: projectData, error: projectError } = await supabase
-                .from('projects')
-                .select('title, creator_id')
-                .eq('id', app.project_id)
-                .single();
-              
-              if (projectError) {
-                console.error('Error fetching project details:', projectError);
+        } else {
+          // If there are sent applications, fetch project details for each
+          if (sentApps && sentApps.length > 0) {
+            const enhancedSentApps = await Promise.all(
+              sentApps.map(async (app) => {
+                const { data: projectData, error: projectError } = await supabase
+                  .from('projects')
+                  .select('title, creator_id')
+                  .eq('id', app.project_id)
+                  .single();
+                
+                if (projectError) {
+                  console.error('Error fetching project details:', projectError);
+                  return {
+                    ...app,
+                    projects: { title: "Unknown Project" }
+                  };
+                }
+                  
                 return {
                   ...app,
-                  projects: { title: "Unknown Project" }
+                  projects: projectData
                 };
-              }
-                
-              return {
-                ...app,
-                projects: projectData
-              };
-            })
-          );
-          
-          setSentApplications(enhancedSentApps);
-          console.log("Final sent applications:", enhancedSentApps);
+              })
+            );
+            
+            setSentApplications(enhancedSentApps);
+          } else {
+            setSentApplications([]);
+          }
         }
       } catch (error) {
         console.error('Error loading applications:', error);
@@ -342,49 +353,47 @@ const ApplicationsPage = () => {
                 <CardContent>
                   {sentApplications && sentApplications.length > 0 ? (
                     <div className="divide-y">
-                      {sentApplications.map((application) => {
-                        return (
-                          <div key={application.id} className="py-4">
-                            <div className="flex justify-between mb-2">
-                              <Link 
-                                to={`/projects/${application.project_id}`}
-                                className="text-lg font-medium text-cobrew-600 hover:text-cobrew-800"
-                              >
-                                {application.projects?.title}
-                              </Link>
-                              <Badge
-                                className={
-                                  application.status === 'accepted' 
-                                    ? 'bg-green-100 text-green-800' 
-                                    : application.status === 'rejected'
-                                    ? 'bg-red-100 text-red-800'
-                                    : 'bg-yellow-100 text-yellow-800'
-                                }
-                              >
-                                {application.status === 'pending' ? 'Pending Review' : 
-                                 application.status === 'accepted' ? 'Accepted' : 'Rejected'}
-                              </Badge>
+                      {sentApplications.map((application) => (
+                        <div key={application.id} className="py-4">
+                          <div className="flex justify-between mb-2">
+                            <Link 
+                              to={`/projects/${application.project_id}`}
+                              className="text-lg font-medium text-cobrew-600 hover:text-cobrew-800"
+                            >
+                              {application.projects?.title}
+                            </Link>
+                            <Badge
+                              className={
+                                application.status === 'accepted' 
+                                  ? 'bg-green-100 text-green-800' 
+                                  : application.status === 'rejected'
+                                  ? 'bg-red-100 text-red-800'
+                                  : 'bg-yellow-100 text-yellow-800'
+                              }
+                            >
+                              {application.status === 'pending' ? 'Pending Review' : 
+                               application.status === 'accepted' ? 'Accepted' : 'Rejected'}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-gray-600 mb-4">
+                            Applied on {formatDate(application.created_at)}
+                          </p>
+                          <div className="grid grid-cols-3 gap-4">
+                            <div>
+                              <h4 className="font-medium mb-2">Introduction</h4>
+                              <p className="text-gray-700 line-clamp-3">{application.introduction}</p>
                             </div>
-                            <p className="text-sm text-gray-600 mb-4">
-                              Applied on {formatDate(application.created_at)}
-                            </p>
-                            <div className="grid grid-cols-3 gap-4">
-                              <div>
-                                <h4 className="font-medium mb-2">Introduction</h4>
-                                <p className="text-gray-700 line-clamp-3">{application.introduction}</p>
-                              </div>
-                              <div>
-                                <h4 className="font-medium mb-2">Experience</h4>
-                                <p className="text-gray-700 line-clamp-3">{application.experience}</p>
-                              </div>
-                              <div>
-                                <h4 className="font-medium mb-2">Motivation</h4>
-                                <p className="text-gray-700 line-clamp-3">{application.motivation}</p>
-                              </div>
+                            <div>
+                              <h4 className="font-medium mb-2">Experience</h4>
+                              <p className="text-gray-700 line-clamp-3">{application.experience}</p>
+                            </div>
+                            <div>
+                              <h4 className="font-medium mb-2">Motivation</h4>
+                              <p className="text-gray-700 line-clamp-3">{application.motivation}</p>
                             </div>
                           </div>
-                        );
-                      })}
+                        </div>
+                      ))}
                     </div>
                   ) : (
                     <div className="text-center py-8">
