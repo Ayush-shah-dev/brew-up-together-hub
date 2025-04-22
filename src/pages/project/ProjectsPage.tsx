@@ -174,14 +174,14 @@ const ProjectsPage = () => {
               </div>
               <div className="w-full md:w-48">
                 <Select
-                  value={stageFilter || ""}
-                  onValueChange={(value) => setStageFilter(value || null)}
+                  value={stageFilter || "all"}
+                  onValueChange={(value) => setStageFilter(value === "all" ? null : value)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Filter by stage" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Stages</SelectItem>
+                    <SelectItem value="all">All Stages</SelectItem>
                     <SelectItem value="idea">Idea Stage</SelectItem>
                     <SelectItem value="concept">Concept Development</SelectItem>
                     <SelectItem value="prototype">Prototype</SelectItem>
