@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Layout from "@/components/layout/Layout";
@@ -76,7 +77,8 @@ const ApplicationDetailPage = () => {
         setApplication(completeApplication);
         
         // Check if current user is project owner
-        const projectCreatorId = applicationData.projects?.creator_id;
+        // Fix the type issue by handling the possibility that projects might be null or undefined
+        const projectCreatorId = applicationData.projects ? applicationData.projects.creator_id : null;
         setIsOwner(projectCreatorId === session.user.id);
 
         // If user is neither the applicant nor the project owner, redirect
