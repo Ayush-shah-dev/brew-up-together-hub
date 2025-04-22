@@ -35,13 +35,10 @@ const ApplicationDetailPage = () => {
           return;
         }
 
-        // Load application details with a proper join
+        // First fetch the application
         const { data: applicationData, error: applicationError } = await supabase
           .from('project_applications')
-          .select(`
-            *,
-            projects:project_id(*)
-          `)
+          .select('*')
           .eq('id', applicationId)
           .single();
           
@@ -55,6 +52,17 @@ const ApplicationDetailPage = () => {
         if (!applicationData) {
           navigate('/applications');
           return;
+        }
+
+        // Then fetch the project separately
+        const { data: projectData, error: projectError } = await supabase
+          .from('projects')
+          .select('*')
+          .eq('id', applicationData.project_id)
+          .single();
+          
+        if (projectError) {
+          console.error('Error fetching project:', projectError);
         }
 
         // Fetch applicant details separately
@@ -71,14 +79,14 @@ const ApplicationDetailPage = () => {
         // Combine the data
         const completeApplication = {
           ...applicationData,
+          projects: projectData || null,
           applicant: applicantData || { email: 'Unknown', avatar_url: null }
         };
 
         setApplication(completeApplication);
         
         // Check if current user is project owner
-        // Fix the type issue by handling the possibility that projects might be null or undefined
-        const projectCreatorId = applicationData.projects ? applicationData.projects.creator_id : null;
+        const projectCreatorId = projectData ? projectData.creator_id : null;
         setIsOwner(projectCreatorId === session.user.id);
 
         // If user is neither the applicant nor the project owner, redirect
@@ -183,7 +191,7 @@ const ApplicationDetailPage = () => {
           <Card className="mb-6">
             <CardHeader className="pb-2">
               <div className="flex justify-between items-start">
-                <CardTitle>{application.projects?.title}</CardTitle>
+                <CardTitle>{application.projects?.title || "Project"}</CardTitle>
                 <Badge
                   className={
                     application.status === 'accepted' 
@@ -245,7 +253,7 @@ const ApplicationDetailPage = () => {
               <CardTitle>About the Project</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-gray-700 mb-4">{application.projects?.description}</p>
+              <p className="text-gray-700 mb-4">{application.projects?.description || "No description available."}</p>
               <Button 
                 className="bg-cobrew-600 hover:bg-cobrew-700"
                 onClick={() => navigate(`/projects/${application.project_id}`)}
