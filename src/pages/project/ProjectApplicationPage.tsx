@@ -1,41 +1,92 @@
 
 import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import Layout from "@/components/layout/Layout";
 import ProjectApplication from "@/components/project/ProjectApplication";
 import { Skeleton } from "@/components/ui/skeleton";
-
-// Mock project data - will be replaced with Supabase data
-const MOCK_PROJECT = {
-  id: "1",
-  title: "AI-Powered Meal Planning App",
-};
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const ProjectApplicationPage = () => {
   const { projectId } = useParams();
   const [project, setProject] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    // Simulate loading project data
     const loadProject = async () => {
       try {
-        // After Supabase integration, this will fetch actual project data based on projectId
-        setTimeout(() => {
-          setProject(MOCK_PROJECT);
-          setIsLoading(false);
-        }, 800);
+        setIsLoading(true);
+        
+        if (!projectId) {
+          navigate('/projects');
+          return;
+        }
+        
+        // Get current user session to check authentication
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user) {
+          toast.error("You must be logged in to apply for projects");
+          navigate('/login');
+          return;
+        }
+        
+        // Fetch project data
+        const { data: projectData, error: projectError } = await supabase
+          .from('projects')
+          .select('*')
+          .eq('id', projectId)
+          .single();
+          
+        if (projectError) {
+          console.error("Error loading project:", projectError);
+          toast.error("Failed to load project details");
+          navigate('/projects');
+          return;
+        }
+        
+        if (!projectData) {
+          toast.error("Project not found");
+          navigate('/projects');
+          return;
+        }
+        
+        // Check if the user is the project creator (can't apply to own project)
+        if (projectData.creator_id === session.user.id) {
+          toast.error("You cannot apply to your own project");
+          navigate(`/projects/${projectId}`);
+          return;
+        }
+        
+        // Check if the user has already applied to this project
+        const { data: existingApplication, error: applicationError } = await supabase
+          .from('project_applications')
+          .select('*')
+          .eq('project_id', projectId)
+          .eq('applicant_id', session.user.id);
+          
+        if (applicationError) {
+          console.error("Error checking existing application:", applicationError);
+        } else if (existingApplication && existingApplication.length > 0) {
+          toast.error("You have already applied to this project");
+          navigate(`/projects/${projectId}`);
+          return;
+        }
+        
+        setProject(projectData);
       } catch (error) {
         console.error("Error loading project:", error);
+        toast.error("Failed to load project details");
+      } finally {
         setIsLoading(false);
       }
     };
 
     loadProject();
-  }, [projectId]);
+  }, [projectId, navigate]);
 
   return (
-    <Layout>
+    <Layout requireAuth={true}>
       <div className="min-h-screen py-16 flex flex-col items-center justify-center bg-gray-50">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Apply to Join Project</h1>

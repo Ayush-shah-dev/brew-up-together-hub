@@ -41,42 +41,85 @@ const ApplicationsPage = () => {
           
         if (projectsError) {
           console.error('Error fetching projects:', projectsError);
+          toast.error("Failed to load your projects");
           return;
         }
 
+        // If user has projects, fetch applications for those projects
         if (projectIds && projectIds.length > 0) {
           const ids = projectIds.map(p => p.id);
           
+          // First get the applications
           const { data: receivedApplicationsData, error: receivedApplicationsError } = await supabase
             .from('project_applications')
-            .select(`
-              *,
-              projects:project_id(*),
-              profiles:applicant_id(email, avatar_url)
-            `)
+            .select('*')
             .in('project_id', ids);
             
           if (receivedApplicationsError) {
             console.error('Error fetching received applications:', receivedApplicationsError);
+            toast.error("Failed to load applications for your projects");
+          } else if (receivedApplicationsData && receivedApplicationsData.length > 0) {
+            // If we have applications, fetch related data for each application
+            const enhancedApplications = await Promise.all(
+              receivedApplicationsData.map(async (app) => {
+                // Get project details
+                const { data: projectData } = await supabase
+                  .from('projects')
+                  .select('*')
+                  .eq('id', app.project_id)
+                  .single();
+                
+                // Get applicant details
+                const { data: profileData } = await supabase
+                  .from('profiles')
+                  .select('email, avatar_url')
+                  .eq('id', app.applicant_id)
+                  .single();
+                
+                return {
+                  ...app,
+                  projects: projectData || null,
+                  profiles: profileData || { email: "Unknown", avatar_url: null }
+                };
+              })
+            );
+            
+            setApplications(enhancedApplications);
           } else {
-            setApplications(receivedApplicationsData || []);
+            setApplications([]);
           }
         }
 
         // Load sent applications (that I've submitted)
         const { data: sentApplicationsData, error: sentApplicationsError } = await supabase
           .from('project_applications')
-          .select(`
-            *,
-            projects:project_id(*),
-            profiles:project_id(projects(creator_id(profiles(email, avatar_url))))
-          `)
+          .select('*')
           .eq('applicant_id', session.user.id);
           
         if (sentApplicationsError) {
           console.error('Error fetching sent applications:', sentApplicationsError);
+          toast.error("Failed to load your submitted applications");
+        } else if (sentApplicationsData && sentApplicationsData.length > 0) {
+          // If we have sent applications, fetch related project data
+          const enhancedSentApplications = await Promise.all(
+            sentApplicationsData.map(async (app) => {
+              // Get project details
+              const { data: projectData } = await supabase
+                .from('projects')
+                .select('*')
+                .eq('id', app.project_id)
+                .single();
+              
+              return {
+                ...app,
+                projects: projectData || null
+              };
+            })
+          );
+          
+          setSentApplications(enhancedSentApplications);
         } else {
-          setSentApplications(sentApplicationsData || []);
+          setSentApplications([]);
         }
       } catch (error) {
         console.error('Error loading applications:', error);
