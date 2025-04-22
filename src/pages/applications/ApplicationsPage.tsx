@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Layout from "@/components/layout/Layout";
@@ -6,11 +5,30 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+
+const extractMessageSections = (message: string) => {
+  const sections = {
+    introduction: '',
+    experience: '',
+    motivation: ''
+  };
+
+  if (!message) return sections;
+
+  const matches = message.match(/Introduction:\s*([\s\S]*?)\s*(?=Relevant Experience:|$)/);
+  const expMatches = message.match(/Relevant Experience:\s*([\s\S]*?)\s*(?=Motivation & Availability:|$)/);
+  const motMatches = message.match(/Motivation & Availability:\s*([\s\S]*?)$/);
+
+  if (matches) sections.introduction = matches[1].trim();
+  if (expMatches) sections.experience = expMatches[1].trim();
+  if (motMatches) sections.motivation = motMatches[1].trim();
+
+  return sections;
+};
 
 const ApplicationsPage = () => {
   const [applications, setApplications] = useState([]);
@@ -24,7 +42,6 @@ const ApplicationsPage = () => {
       try {
         setIsLoading(true);
         
-        // Get current user
         const { data: { session } } = await supabase.auth.getSession();
         if (!session?.user) {
           navigate('/login');
@@ -33,7 +50,6 @@ const ApplicationsPage = () => {
         
         setUser(session.user);
 
-        // Load received applications (for projects I own)
         const { data: myProjects, error: projectsError } = await supabase
           .from('projects')
           .select('id, title')
@@ -48,12 +64,10 @@ const ApplicationsPage = () => {
 
         console.log("My projects:", myProjects);
 
-        // If user has projects, fetch applications for those projects
         let receivedApplications = [];
         if (myProjects && myProjects.length > 0) {
           const projectIds = myProjects.map(p => p.id);
           
-          // Get applications for user's projects
           const { data: receivedApps, error: receivedAppsError } = await supabase
             .from('project_applications')
             .select(`
@@ -72,13 +86,10 @@ const ApplicationsPage = () => {
           } else if (receivedApps && receivedApps.length > 0) {
             console.log("Received applications:", receivedApps);
             
-            // Process each application to add project and applicant info
             const enhancedApps = await Promise.all(
               receivedApps.map(async (app) => {
-                // Find project details from our already fetched projects
                 const projectInfo = myProjects.find(p => p.id === app.project_id);
                 
-                // Get applicant profile
                 const { data: profileData, error: profileError } = await supabase
                   .from('profiles')
                   .select('email, avatar_url')
@@ -104,7 +115,6 @@ const ApplicationsPage = () => {
         setApplications(receivedApplications);
         console.log("Final received applications:", receivedApplications);
 
-        // Load sent applications (that I've submitted)
         const { data: sentApps, error: sentAppsError } = await supabase
           .from('project_applications')
           .select(`
@@ -123,10 +133,8 @@ const ApplicationsPage = () => {
         } else if (sentApps && sentApps.length > 0) {
           console.log("Sent applications:", sentApps);
           
-          // If we have sent applications, fetch related project data
           const enhancedSentApps = await Promise.all(
             sentApps.map(async (app) => {
-              // Get project details
               const { data: projectData, error: projectError } = await supabase
                 .from('projects')
                 .select('title, creator_id')
@@ -173,7 +181,6 @@ const ApplicationsPage = () => {
         throw error;
       }
       
-      // Update the application in the state
       setApplications(applications.map(app => 
         app.id === applicationId ? { ...app, status: newStatus } : app
       ));
@@ -244,77 +251,90 @@ const ApplicationsPage = () => {
                         <TableRow>
                           <TableHead>Applicant</TableHead>
                           <TableHead>Project</TableHead>
-                          <TableHead>Date</TableHead>
+                          <TableHead>Introduction</TableHead>
+                          <TableHead>Experience</TableHead>
+                          <TableHead>Motivation</TableHead>
                           <TableHead>Status</TableHead>
                           <TableHead>Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {applications.map((application) => (
-                          <TableRow key={application.id}>
-                            <TableCell className="flex items-center gap-2">
-                              <Avatar className="h-8 w-8">
-                                <AvatarImage src={application.profiles?.avatar_url} />
-                                <AvatarFallback>
-                                  {getInitials(application.profiles?.email)}
-                                </AvatarFallback>
-                              </Avatar>
-                              <span>{application.profiles?.email}</span>
-                            </TableCell>
-                            <TableCell>
-                              <Link 
-                                to={`/projects/${application.project_id}`}
-                                className="text-cobrew-600 hover:text-cobrew-800 font-medium"
-                              >
-                                {application.projects?.title}
-                              </Link>
-                            </TableCell>
-                            <TableCell>{formatDate(application.created_at)}</TableCell>
-                            <TableCell>
-                              <Badge
-                                className={
-                                  application.status === 'accepted' 
-                                    ? 'bg-green-100 text-green-800' 
-                                    : application.status === 'rejected'
-                                    ? 'bg-red-100 text-red-800'
-                                    : 'bg-yellow-100 text-yellow-800'
-                                }
-                              >
-                                {application.status === 'pending' ? 'Pending Review' : 
-                                 application.status === 'accepted' ? 'Accepted' : 'Rejected'}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex gap-2">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => navigate(`/applications/${application.id}`)}
+                        {applications.map((application) => {
+                          const sections = extractMessageSections(application.message);
+                          return (
+                            <TableRow key={application.id}>
+                              <TableCell className="flex items-center gap-2">
+                                <Avatar className="h-8 w-8">
+                                  <AvatarImage src={application.profiles?.avatar_url} />
+                                  <AvatarFallback>
+                                    {getInitials(application.profiles?.email)}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <span>{application.profiles?.email}</span>
+                              </TableCell>
+                              <TableCell>
+                                <Link 
+                                  to={`/projects/${application.project_id}`}
+                                  className="text-cobrew-600 hover:text-cobrew-800 font-medium"
                                 >
-                                  View
-                                </Button>
-                                {application.status === 'pending' && (
-                                  <>
-                                    <Button 
-                                      size="sm" 
-                                      className="bg-green-600 hover:bg-green-700"
-                                      onClick={() => handleStatusUpdate(application.id, 'accepted')}
-                                    >
-                                      Accept
-                                    </Button>
-                                    <Button 
-                                      size="sm" 
-                                      variant="destructive"
-                                      onClick={() => handleStatusUpdate(application.id, 'rejected')}
-                                    >
-                                      Reject
-                                    </Button>
-                                  </>
-                                )}
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
+                                  {application.projects?.title}
+                                </Link>
+                              </TableCell>
+                              <TableCell className="max-w-[200px] truncate">
+                                {sections.introduction}
+                              </TableCell>
+                              <TableCell className="max-w-[200px] truncate">
+                                {sections.experience}
+                              </TableCell>
+                              <TableCell className="max-w-[200px] truncate">
+                                {sections.motivation}
+                              </TableCell>
+                              <TableCell>
+                                <Badge
+                                  className={
+                                    application.status === 'accepted' 
+                                      ? 'bg-green-100 text-green-800' 
+                                      : application.status === 'rejected'
+                                      ? 'bg-red-100 text-red-800'
+                                      : 'bg-yellow-100 text-yellow-800'
+                                  }
+                                >
+                                  {application.status === 'pending' ? 'Pending Review' : 
+                                   application.status === 'accepted' ? 'Accepted' : 'Rejected'}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => navigate(`/applications/${application.id}`)}
+                                  >
+                                    View
+                                  </Button>
+                                  {application.status === 'pending' && (
+                                    <>
+                                      <Button 
+                                        size="sm" 
+                                        className="bg-green-600 hover:bg-green-700"
+                                        onClick={() => handleStatusUpdate(application.id, 'accepted')}
+                                      >
+                                        Accept
+                                      </Button>
+                                      <Button 
+                                        size="sm" 
+                                        variant="destructive"
+                                        onClick={() => handleStatusUpdate(application.id, 'rejected')}
+                                      >
+                                        Reject
+                                      </Button>
+                                    </>
+                                  )}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
                       </TableBody>
                     </Table>
                   ) : (
@@ -340,40 +360,50 @@ const ApplicationsPage = () => {
                 <CardContent>
                   {sentApplications && sentApplications.length > 0 ? (
                     <div className="divide-y">
-                      {sentApplications.map((application) => (
-                        <div key={application.id} className="py-4">
-                          <div className="flex justify-between mb-2">
-                            <Link 
-                              to={`/projects/${application.project_id}`}
-                              className="text-lg font-medium text-cobrew-600 hover:text-cobrew-800"
-                            >
-                              {application.projects?.title}
-                            </Link>
-                            <Badge
-                              className={
-                                application.status === 'accepted' 
-                                  ? 'bg-green-100 text-green-800' 
-                                  : application.status === 'rejected'
-                                  ? 'bg-red-100 text-red-800'
-                                  : 'bg-yellow-100 text-yellow-800'
-                              }
-                            >
-                              {application.status === 'pending' ? 'Pending Review' : 
-                               application.status === 'accepted' ? 'Accepted' : 'Rejected'}
-                            </Badge>
-                          </div>
-                          <p className="text-sm text-gray-600">
-                            Applied on {formatDate(application.created_at)}
-                          </p>
-                          <div className="mt-2">
-                            <p className="text-gray-700">
-                              {application.message?.length > 150 
-                                ? `${application.message.substring(0, 150)}...` 
-                                : application.message}
+                      {sentApplications.map((application) => {
+                        const sections = extractMessageSections(application.message);
+                        return (
+                          <div key={application.id} className="py-4">
+                            <div className="flex justify-between mb-2">
+                              <Link 
+                                to={`/projects/${application.project_id}`}
+                                className="text-lg font-medium text-cobrew-600 hover:text-cobrew-800"
+                              >
+                                {application.projects?.title}
+                              </Link>
+                              <Badge
+                                className={
+                                  application.status === 'accepted' 
+                                    ? 'bg-green-100 text-green-800' 
+                                    : application.status === 'rejected'
+                                    ? 'bg-red-100 text-red-800'
+                                    : 'bg-yellow-100 text-yellow-800'
+                                }
+                              >
+                                {application.status === 'pending' ? 'Pending Review' : 
+                                 application.status === 'accepted' ? 'Accepted' : 'Rejected'}
+                              </Badge>
+                            </div>
+                            <p className="text-sm text-gray-600 mb-4">
+                              Applied on {formatDate(application.created_at)}
                             </p>
+                            <div className="grid grid-cols-3 gap-4">
+                              <div>
+                                <h4 className="font-medium mb-2">Introduction</h4>
+                                <p className="text-gray-700 line-clamp-3">{sections.introduction}</p>
+                              </div>
+                              <div>
+                                <h4 className="font-medium mb-2">Experience</h4>
+                                <p className="text-gray-700 line-clamp-3">{sections.experience}</p>
+                              </div>
+                              <div>
+                                <h4 className="font-medium mb-2">Motivation</h4>
+                                <p className="text-gray-700 line-clamp-3">{sections.motivation}</p>
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   ) : (
                     <div className="text-center py-8">
