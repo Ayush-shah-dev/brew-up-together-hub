@@ -164,7 +164,7 @@ const ProjectDetailPage = () => {
     };
 
     loadUserAndProject();
-  }, [projectId]);
+  }, [projectId, hasApplied]);
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -413,7 +413,7 @@ const ProjectDetailPage = () => {
                         className="bg-cobrew-600 hover:bg-cobrew-700"
                         asChild
                       >
-                        <Link to="/dashboard/applications">View Applications</Link>
+                        <Link to="/applications">View Applications</Link>
                       </Button>
                     </div>
                   ) : !project.hasApplied && (

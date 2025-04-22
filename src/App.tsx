@@ -17,6 +17,8 @@ import CreateProjectPage from "./pages/project/CreateProjectPage";
 import ProjectSuccessPage from "./pages/project/ProjectSuccessPage";
 import ProjectDetailPage from "./pages/project/ProjectDetailPage";
 import ProjectApplicationPage from "./pages/project/ProjectApplicationPage";
+import ApplicationsPage from "./pages/applications/ApplicationsPage";
+import ApplicationDetailPage from "./pages/applications/ApplicationDetailPage";
 import MessagesPage from "./pages/messaging/MessagesPage";
 import NotFound from "./pages/NotFound";
 
@@ -49,6 +51,10 @@ const App = () => (
           <Route path="/projects/success" element={<ProjectSuccessPage />} />
           <Route path="/projects/:projectId" element={<ProjectDetailPage />} />
           <Route path="/projects/:projectId/apply" element={<ProjectApplicationPage />} />
+          
+          {/* Application Routes */}
+          <Route path="/applications" element={<ApplicationsPage />} />
+          <Route path="/applications/:applicationId" element={<ApplicationDetailPage />} />
           
           {/* Messaging Routes */}
           <Route path="/messages" element={<MessagesPage />} />

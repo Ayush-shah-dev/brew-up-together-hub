@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const applicationSchema = z.object({
   message: z.string()
@@ -60,26 +61,62 @@ const ProjectApplication = ({ projectId, projectTitle }: ProjectApplicationProps
   const onSubmit = async (values: ApplicationFormValues) => {
     setIsLoading(true);
     try {
-      // After Supabase integration, we will add actual application submission logic here
-      console.log("Application values:", values);
+      // Get current user
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session?.user) {
+        toast({
+          title: "Authentication required",
+          description: "You must be logged in to apply for projects",
+          variant: "destructive",
+        });
+        navigate('/login');
+        return;
+      }
+
+      // Combine all messages into one for the database
+      const combinedMessage = `
+Introduction:
+${values.message}
+
+Relevant Experience:
+${values.experience}
+
+Motivation & Availability:
+${values.motivation}
+      `;
+      
+      // Insert application into database
+      const { data, error } = await supabase
+        .from('project_applications')
+        .insert({
+          project_id: projectId,
+          applicant_id: session.user.id,
+          message: combinedMessage,
+          status: 'pending'
+        })
+        .select();
+      
+      if (error) {
+        console.error("Error submitting application:", error);
+        throw error;
+      }
       
       toast({
         title: "Application submitted",
         description: "Your application has been submitted successfully. The project owner will review it soon.",
       });
       
-      // Simulate successful operation for now
-      setTimeout(() => {
-        setIsLoading(false);
-        navigate(`/projects/${projectId}`);
-      }, 1500);
+      navigate(`/projects/${projectId}`);
     } catch (error) {
-      setIsLoading(false);
+      console.error("Error in application submission:", error);
       toast({
         title: "Failed to submit application",
         description: "An error occurred. Please try again.",
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 

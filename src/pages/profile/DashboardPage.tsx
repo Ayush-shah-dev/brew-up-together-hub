@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Layout from "@/components/layout/Layout";
@@ -85,18 +86,24 @@ const DashboardPage = () => {
       // Load applications
       const { data: applicationsData, error: applicationsError } = await supabase
         .from('project_applications')
-        .select('*')
+        .select('*, projects(*)')
         .eq('applicant_id', userId);
         
       if (applicationsError) {
         console.error('Error fetching applications:', applicationsError);
+        toast.error("Failed to load application data");
+      } else {
+        setApplications(applicationsData || []);
       }
+
+      // Count total projects for which this user has pending applications
+      const pendingApplicationsCount = applicationsData?.filter(app => app.status === 'pending').length || 0;
       
       // Set user stats
       setStats({
         projectsCreated: projectsData?.length || 0,
         projectsJoined: 0,
-        applicationsPending: applicationsData?.length || 0,
+        applicationsPending: pendingApplicationsCount,
         messagesUnread: 0
       });
       
@@ -319,18 +326,54 @@ const DashboardPage = () => {
                     <div className="p-4 border-b">
                       <h3 className="font-medium">Your Applications</h3>
                     </div>
-                    <div className="p-8 text-center">
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">No applications yet</h3>
-                      <p className="text-gray-600 mb-6">
-                        Apply to projects that match your skills and interests
-                      </p>
-                      <Button 
-                        className="bg-cobrew-600 hover:bg-cobrew-700"
-                        asChild
-                      >
-                        <Link to="/projects">Browse Projects</Link>
-                      </Button>
-                    </div>
+                    {applications.length > 0 ? (
+                      <div className="divide-y">
+                        {applications.map((application) => (
+                          <div key={application.id} className="p-4 hover:bg-gray-50">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <h3 className="font-medium">
+                                  <Link 
+                                    to={`/projects/${application.project_id}`}
+                                    className="text-cobrew-600 hover:text-cobrew-800"
+                                  >
+                                    {application.projects?.title || "Project"}
+                                  </Link>
+                                </h3>
+                                <p className="text-sm text-gray-600 mt-1">
+                                  Applied on {formatDate(application.created_at)}
+                                </p>
+                              </div>
+                              <Badge 
+                                className={
+                                  application.status === 'accepted' 
+                                    ? 'bg-green-100 text-green-800' 
+                                    : application.status === 'rejected'
+                                    ? 'bg-red-100 text-red-800'
+                                    : 'bg-yellow-100 text-yellow-800'
+                                }
+                              >
+                                {application.status === 'pending' ? 'Pending Review' : 
+                                 application.status === 'accepted' ? 'Accepted' : 'Rejected'}
+                              </Badge>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="p-8 text-center">
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">No applications yet</h3>
+                        <p className="text-gray-600 mb-6">
+                          Apply to projects that match your skills and interests
+                        </p>
+                        <Button 
+                          className="bg-cobrew-600 hover:bg-cobrew-700"
+                          asChild
+                        >
+                          <Link to="/projects">Browse Projects</Link>
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </TabsContent>
 
