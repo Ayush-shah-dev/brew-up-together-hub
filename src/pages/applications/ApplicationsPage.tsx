@@ -34,9 +34,9 @@ const ApplicationsPage = () => {
         setUser(session.user);
 
         // Load received applications (for projects I own)
-        const { data: projectIds, error: projectsError } = await supabase
+        const { data: projectsData, error: projectsError } = await supabase
           .from('projects')
-          .select('id')
+          .select('id, title')
           .eq('creator_id', session.user.id);
           
         if (projectsError) {
@@ -46,49 +46,48 @@ const ApplicationsPage = () => {
         }
 
         // If user has projects, fetch applications for those projects
-        if (projectIds && projectIds.length > 0) {
-          const ids = projectIds.map(p => p.id);
+        let receivedApplications = [];
+        if (projectsData && projectsData.length > 0) {
+          const projectIds = projectsData.map(p => p.id);
           
-          // First get the applications
+          // Get applications for user's projects
           const { data: receivedApplicationsData, error: receivedApplicationsError } = await supabase
             .from('project_applications')
             .select('*')
-            .in('project_id', ids);
+            .in('project_id', projectIds);
             
           if (receivedApplicationsError) {
             console.error('Error fetching received applications:', receivedApplicationsError);
             toast.error("Failed to load applications for your projects");
           } else if (receivedApplicationsData && receivedApplicationsData.length > 0) {
-            // If we have applications, fetch related data for each application
-            const enhancedApplications = await Promise.all(
+            // Process each application to add project and applicant info
+            receivedApplications = await Promise.all(
               receivedApplicationsData.map(async (app) => {
-                // Get project details
-                const { data: projectData } = await supabase
-                  .from('projects')
-                  .select('*')
-                  .eq('id', app.project_id)
-                  .single();
+                // Find project details from our already fetched projects
+                const projectInfo = projectsData.find(p => p.id === app.project_id);
                 
-                // Get applicant details
-                const { data: profileData } = await supabase
+                // Get applicant profile
+                const { data: profileData, error: profileError } = await supabase
                   .from('profiles')
                   .select('email, avatar_url')
                   .eq('id', app.applicant_id)
                   .single();
                 
+                if (profileError) {
+                  console.error('Error fetching applicant profile:', profileError);
+                }
+                
                 return {
                   ...app,
-                  projects: projectData || null,
+                  projects: projectInfo || { title: "Unknown Project" },
                   profiles: profileData || { email: "Unknown", avatar_url: null }
                 };
               })
             );
-            
-            setApplications(enhancedApplications);
-          } else {
-            setApplications([]);
           }
         }
+        
+        setApplications(receivedApplications);
 
         // Load sent applications (that I've submitted)
         const { data: sentApplicationsData, error: sentApplicationsError } = await supabase
@@ -99,27 +98,33 @@ const ApplicationsPage = () => {
         if (sentApplicationsError) {
           console.error('Error fetching sent applications:', sentApplicationsError);
           toast.error("Failed to load your submitted applications");
-        } else if (sentApplicationsData && sentApplicationsData.length > 0) {
+        } else {
           // If we have sent applications, fetch related project data
           const enhancedSentApplications = await Promise.all(
-            sentApplicationsData.map(async (app) => {
+            (sentApplicationsData || []).map(async (app) => {
               // Get project details
-              const { data: projectData } = await supabase
+              const { data: projectData, error: projectError } = await supabase
                 .from('projects')
-                .select('*')
+                .select('title, creator_id')
                 .eq('id', app.project_id)
                 .single();
               
+              if (projectError) {
+                console.error('Error fetching project details:', projectError);
+                return {
+                  ...app,
+                  projects: { title: "Unknown Project" }
+                };
+              }
+                
               return {
                 ...app,
-                projects: projectData || null
+                projects: projectData
               };
             })
           );
           
           setSentApplications(enhancedSentApplications);
-        } else {
-          setSentApplications([]);
         }
       } catch (error) {
         console.error('Error loading applications:', error);
