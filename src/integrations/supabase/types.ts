@@ -154,6 +154,7 @@ export type Database = {
           creator_id: string
           description: string
           id: string
+          premium_features: boolean | null
           roles_needed: string[] | null
           stage: string
           tags: string[] | null
@@ -166,6 +167,7 @@ export type Database = {
           creator_id: string
           description: string
           id?: string
+          premium_features?: boolean | null
           roles_needed?: string[] | null
           stage: string
           tags?: string[] | null
@@ -178,11 +180,48 @@ export type Database = {
           creator_id?: string
           description?: string
           id?: string
+          premium_features?: boolean | null
           roles_needed?: string[] | null
           stage?: string
           tags?: string[] | null
           title?: string
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      subscribers: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          stripe_customer_id: string | null
+          subscribed: boolean
+          subscription_end: string | null
+          subscription_tier: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          stripe_customer_id?: string | null
+          subscribed?: boolean
+          subscription_end?: string | null
+          subscription_tier?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          stripe_customer_id?: string | null
+          subscribed?: boolean
+          subscription_end?: string | null
+          subscription_tier?: string | null
+          updated_at?: string
+          user_id?: string | null
         }
         Relationships: []
       }

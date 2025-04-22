@@ -13,6 +13,7 @@ import EditProfilePage from "./pages/profile/EditProfilePage";
 import ViewProfilePage from "./pages/profile/ViewProfilePage";
 import DashboardPage from "./pages/profile/DashboardPage";
 import ProjectsPage from "./pages/project/ProjectsPage";
+import ProjectDirectoryPage from "./pages/project/ProjectDirectoryPage";
 import CreateProjectPage from "./pages/project/CreateProjectPage";
 import ProjectSuccessPage from "./pages/project/ProjectSuccessPage";
 import ProjectDetailPage from "./pages/project/ProjectDetailPage";
@@ -47,6 +48,7 @@ const App = () => (
           
           {/* Project Routes */}
           <Route path="/projects" element={<ProjectsPage />} />
+          <Route path="/project" element={<ProjectDirectoryPage />} />
           <Route path="/projects/new" element={<CreateProjectPage />} />
           <Route path="/projects/success" element={<ProjectSuccessPage />} />
           <Route path="/projects/:projectId" element={<ProjectDetailPage />} />
