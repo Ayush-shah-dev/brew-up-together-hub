@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import Layout from "@/components/layout/Layout";
@@ -108,14 +107,16 @@ const ProjectDetailPage = () => {
           }
         }
 
-        // Get application count
-        const { count, error: countError } = await supabase
+        // Get application count - fixing this to properly count applications
+        const { data: applicationsData, error: countError } = await supabase
           .from('project_applications')
-          .select('id', { count: 'exact', head: true })
+          .select('id')
           .eq('project_id', projectId);
         
         if (!countError) {
-          setApplicationCount(count || 0);
+          setApplicationCount(applicationsData?.length || 0);
+        } else {
+          console.error("Error fetching application count:", countError);
         }
 
         // Set owner info
@@ -144,7 +145,7 @@ const ProjectDetailPage = () => {
           isOwner: session?.user?.id === projectData.creator_id,
           hasApplied: hasApplied,
           team: [ownerInfo],
-          applications: count || 0,
+          applications: applicationsData?.length || 0,
           website: "", // These fields don't exist in our DB yet
           repo: "", // These fields don't exist in our DB yet
           teamSize: projectData.tags?.[0] || "solo",
@@ -175,6 +176,7 @@ const ProjectDetailPage = () => {
   };
 
   const getInitials = (name) => {
+    if (!name) return "?";
     return name
       .split(" ")
       .map((part) => part[0])
@@ -238,7 +240,6 @@ const ProjectDetailPage = () => {
       <div className="min-h-screen py-16 bg-gray-50">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="bg-white shadow rounded-lg overflow-hidden">
-            {/* Project Header */}
             <div className="p-6">
               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between">
                 <div>
@@ -325,7 +326,6 @@ const ProjectDetailPage = () => {
               </TabsList>
               
               <TabsContent value="details" className="p-6">
-                {/* Project Description */}
                 <div className="prose max-w-none">
                   <h3 className="text-lg font-semibold mb-2">About the Project</h3>
                   <div className="whitespace-pre-line">
@@ -335,7 +335,6 @@ const ProjectDetailPage = () => {
                 
                 <Separator className="my-6" />
                 
-                {/* Project Details */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <Card>
                     <CardContent className="p-6">
