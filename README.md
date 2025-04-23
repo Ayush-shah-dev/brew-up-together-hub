@@ -1,73 +1,88 @@
-# Welcome to your Lovable project
 
-## Project info
+# Co-Brew Project Hub
 
-**URL**: https://lovable.dev/projects/1c61567c-54d7-46c4-a82d-d744ce90f274
+A platform for student entrepreneurs to collaborate on startup projects.
 
-## How can I edit this code?
+## Overview
 
-There are several ways of editing your application.
+Co-Brew is a web application that helps student entrepreneurs find collaborators for their startup projects. The platform allows users to:
 
-**Use Lovable**
+- Create and showcase startup projects
+- Browse projects by category, stage, and skills needed
+- Apply to join projects they're interested in
+- Manage applications and team building
+- Message potential collaborators
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/1c61567c-54d7-46c4-a82d-d744ce90f274) and start prompting.
+## Tech Stack
 
-Changes made via Lovable will be committed automatically to this repo.
+### Frontend
+- React with TypeScript
+- React Router for navigation
+- TanStack Query for data fetching
+- Tailwind CSS for styling
+- Shadcn UI for component library
 
-**Use your preferred IDE**
+### Backend
+- Node.js with Express
+- MongoDB for database
+- JWT for authentication
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## Setup Instructions
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### Prerequisites
+- Node.js (v14 or later)
+- MongoDB database (MongoDB Atlas recommended)
 
-Follow these steps:
+### Frontend Setup
+1. Clone this repository
+2. Navigate to the project directory
+3. Copy `.env.example` to `.env` and update the API URL
+4. Install dependencies:
+   ```
+   npm install
+   ```
+5. Start the development server:
+   ```
+   npm run dev
+   ```
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+### Backend Setup
+1. Navigate to the `backend` directory
+2. Copy `.env.example` to `.env` and fill in:
+   - `MONGODB_URI`: Your MongoDB connection string
+   - `JWT_SECRET`: A secret string for JWT token generation
+   - `CLIENT_URL`: The URL of your frontend app
+3. Install dependencies:
+   ```
+   npm install
+   ```
+4. Start the backend server:
+   ```
+   npm run dev
+   ```
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+## Deployment
 
-# Step 3: Install the necessary dependencies.
-npm i
+### Frontend Deployment
+1. Build the frontend:
+   ```
+   npm run build
+   ```
+2. Deploy the content of the `dist` folder to your hosting provider
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+### Backend Deployment
+1. Ensure environment variables are set in your hosting environment
+2. Deploy the backend code to your hosting provider
+3. Set up MongoDB connection
 
-**Edit a file directly in GitHub**
+## Important Notes for Backend Developers
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+When connecting the application to MongoDB:
 
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/1c61567c-54d7-46c4-a82d-d744ce90f274) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+1. Ensure you've set up the proper MongoDB connection string in the `.env` file
+2. The backend is structured using the MVC pattern:
+   - `models/` - MongoDB schemas and models
+   - `routes/` - API route handlers
+   - `middleware/` - Authentication and other middleware
+3. Authentication uses JWT tokens stored in localStorage
+4. The MongoDB schemas are designed to match the existing application structure
