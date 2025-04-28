@@ -4,13 +4,15 @@ import { useParams, useNavigate } from "react-router-dom";
 import Layout from "@/components/layout/Layout";
 import ProjectApplication from "@/components/project/ProjectApplication";
 import { Skeleton } from "@/components/ui/skeleton";
-import { supabase } from "@/integrations/supabase/client";
+import { projectsApi, applicationsApi } from "@/services/api";
+import { checkAuth } from "@/lib/auth";
 import { toast } from "sonner";
 
 const ProjectApplicationPage = () => {
   const { projectId } = useParams();
   const [project, setProject] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasApplied, setHasApplied] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -23,27 +25,16 @@ const ProjectApplicationPage = () => {
           return;
         }
         
-        // Get current user session to check authentication
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.user) {
+        // Check if user is authenticated
+        const user = await checkAuth();
+        if (!user) {
           toast.error("You must be logged in to apply for projects");
           navigate('/login');
           return;
         }
         
         // Fetch project data
-        const { data: projectData, error: projectError } = await supabase
-          .from('projects')
-          .select('*')
-          .eq('id', projectId)
-          .single();
-          
-        if (projectError) {
-          console.error("Error loading project:", projectError);
-          toast.error("Failed to load project details");
-          navigate('/projects');
-          return;
-        }
+        const projectData = await projectsApi.getProject(projectId);
         
         if (!projectData) {
           toast.error("Project not found");
@@ -52,25 +43,24 @@ const ProjectApplicationPage = () => {
         }
         
         // Check if the user is the project creator (can't apply to own project)
-        if (projectData.creator_id === session.user.id) {
+        if (projectData.isOwner) {
           toast.error("You cannot apply to your own project");
           navigate(`/projects/${projectId}`);
           return;
         }
         
-        // Check if the user has already applied to this project
-        const { data: existingApplication, error: applicationError } = await supabase
-          .from('project_applications')
-          .select('*')
-          .eq('project_id', projectId)
-          .eq('applicant_id', session.user.id);
+        // Check if user has already applied
+        try {
+          const applications = await applicationsApi.getApplications("submitted");
+          const alreadyApplied = applications.some(app => app.project.id === projectId);
           
-        if (applicationError) {
-          console.error("Error checking existing application:", applicationError);
-        } else if (existingApplication && existingApplication.length > 0) {
-          toast.error("You have already applied to this project");
-          navigate(`/projects/${projectId}`);
-          return;
+          if (alreadyApplied) {
+            toast.error("You have already applied to this project");
+            navigate(`/projects/${projectId}`);
+            return;
+          }
+        } catch (error) {
+          console.error("Error checking existing applications:", error);
         }
         
         setProject(projectData);

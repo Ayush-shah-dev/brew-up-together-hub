@@ -16,7 +16,8 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { supabase } from "@/integrations/supabase/client";
+import { projectsApi } from "@/services/api";
+import { toast } from "sonner";
 
 // Skill options for filtering
 const SKILL_OPTIONS = [
@@ -49,55 +50,18 @@ const ProjectsPage = () => {
     const fetchProjects = async () => {
       try {
         setIsLoading(true);
-        const { data, error } = await supabase
-          .from('projects')
-          .select(`
-            id,
-            title,
-            description,
-            stage,
-            tags,
-            roles_needed,
-            created_at,
-            creator_id
-          `);
         
-        if (error) {
-          console.error("Error loading projects:", error);
-          setProjects([]);
-        } else {
-          // Transform the data to match ProjectCard props
-          const formattedProjects = await Promise.all(data.map(async (project) => {
-            // Get the owner data
-            const { data: ownerData, error: ownerError } = await supabase
-              .from('profiles')
-              .select('email, avatar_url')
-              .eq('id', project.creator_id)
-              .single();
-              
-            let owner = {
-              id: project.creator_id,
-              name: ownerError ? "Unknown User" : (ownerData.email || "Unknown User"),
-              avatarUrl: ownerError ? "" : (ownerData.avatar_url || ""),
-            };
-            
-            return {
-              id: project.id,
-              title: project.title,
-              description: project.description,
-              stage: project.stage as ProjectStage,
-              owner: owner,
-              skills: project.roles_needed || [],
-              createdAt: project.created_at,
-              // Check if current user is the owner
-              isOwner: false // Will be updated in the component
-            };
-          }));
-          
-          setProjects(formattedProjects);
-        }
+        // Build filter object
+        const filters: { search?: string; stage?: string; skills?: string[] } = {};
+        if (searchQuery) filters.search = searchQuery;
+        if (stageFilter) filters.stage = stageFilter;
+        if (selectedSkills.length > 0) filters.skills = selectedSkills;
+        
+        const projectsData = await projectsApi.getProjects(filters);
+        setProjects(projectsData);
       } catch (error) {
         console.error("Error loading projects:", error);
+        toast.error("Failed to load projects");
         setProjects([]);
       } finally {
         setIsLoading(false);
@@ -105,30 +69,7 @@ const ProjectsPage = () => {
     };
 
     fetchProjects();
-  }, []);
-
-  // Apply filters to projects
-  const filteredProjects = projects.filter((project) => {
-    // Search query filter
-    const matchesSearch =
-      searchQuery === "" ||
-      project.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      project.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      project.owner.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      project.skills.some((skill) =>
-        skill.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-
-    // Stage filter
-    const matchesStage = !stageFilter || project.stage === stageFilter;
-
-    // Skills filter
-    const matchesSkills =
-      selectedSkills.length === 0 ||
-      selectedSkills.some((skill) => project.skills.includes(skill));
-
-    return matchesSearch && matchesStage && matchesSkills;
-  });
+  }, [searchQuery, stageFilter, selectedSkills]);
 
   const handleSkillToggle = (skill: string) => {
     setSelectedSkills((prev) =>
@@ -137,6 +78,8 @@ const ProjectsPage = () => {
         : [...prev, skill]
     );
   };
+
+  const filteredProjects = projects;
 
   return (
     <Layout>

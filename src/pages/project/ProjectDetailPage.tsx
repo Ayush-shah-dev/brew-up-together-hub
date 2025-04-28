@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import Layout from "@/components/layout/Layout";
@@ -9,7 +10,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ProjectStage } from "@/components/project/ProjectCard";
-import { supabase } from "@/integrations/supabase/client";
+import { projectsApi, applicationsApi } from "@/services/api";
+import { checkAuth } from "@/lib/auth";
 import { toast } from "sonner";
 
 const stageLabels: Record<ProjectStage, string> = {
@@ -45,126 +47,63 @@ const ProjectDetailPage = () => {
   const { projectId } = useParams();
   const [project, setProject] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [owner, setOwner] = useState(null);
-  const [currentUser, setCurrentUser] = useState(null);
   const [hasApplied, setHasApplied] = useState(false);
-  const [teamMembers, setTeamMembers] = useState([]);
   const [applicationCount, setApplicationCount] = useState(0);
 
   useEffect(() => {
-    const loadUserAndProject = async () => {
+    const loadProject = async () => {
       try {
         setIsLoading(true);
         
-        // Get current user
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          setCurrentUser(session.user);
-        }
-
         if (!projectId) return;
-
-        // Fetch project
-        const { data: projectData, error: projectError } = await supabase
-          .from('projects')
-          .select('*')
-          .eq('id', projectId)
-          .single();
         
-        if (projectError) {
-          console.error("Error loading project:", projectError);
-          toast("Error loading project");
-          setIsLoading(false);
-          return;
-        }
-
-        if (!projectData) {
-          setIsLoading(false);
-          return;
-        }
-
-        // Fetch owner profile
-        const { data: ownerData, error: ownerError } = await supabase
-          .from('profiles')
-          .select('id, email, avatar_url')
-          .eq('id', projectData.creator_id)
-          .single();
+        // Get project details
+        const projectData = await projectsApi.getProject(projectId);
         
-        if (ownerError && ownerError.code !== 'PGRST116') {
-          console.error("Error loading owner:", ownerError);
-        }
-
         // Check if user has applied
-        if (session?.user) {
-          const { data: applicationData, error: applicationError } = await supabase
-            .from('project_applications')
-            .select('id')
-            .eq('project_id', projectId)
-            .eq('applicant_id', session.user.id);
-          
-          if (!applicationError && applicationData && applicationData.length > 0) {
-            setHasApplied(true);
+        try {
+          const user = await checkAuth();
+          if (user) {
+            const applications = await applicationsApi.getApplications("submitted");
+            const existingApplication = applications.find(app => app.project.id === projectId);
+            setHasApplied(!!existingApplication);
+            
+            // If user is project owner, check application count
+            if (projectData.isOwner) {
+              const receivedApplications = await applicationsApi.getApplications("received");
+              const projectApplications = receivedApplications.filter(app => app.project.id === projectId);
+              setApplicationCount(projectApplications.length);
+            }
           }
+        } catch (error) {
+          console.error("Error checking applications:", error);
         }
-
-        // Get application count - fixing this to properly count applications
-        const { data: applicationsData, error: countError } = await supabase
-          .from('project_applications')
-          .select('id')
-          .eq('project_id', projectId);
         
-        if (!countError) {
-          setApplicationCount(applicationsData?.length || 0);
-        } else {
-          console.error("Error fetching application count:", countError);
-        }
-
-        // Set owner info
-        const ownerInfo = ownerData ? {
-          id: ownerData.id,
-          name: ownerData.email?.split('@')[0] || "Project Owner",
-          title: "Project Owner",
-          avatarUrl: ownerData.avatar_url || "",
-        } : {
-          id: projectData.creator_id,
-          name: "Project Owner",
-          title: "Project Owner",
-          avatarUrl: "",
-        };
-
-        setOwner(ownerInfo);
-
-        // For now, just set team members to owner
-        // In a real app, you'd fetch actual team members from a team_members table
-        setTeamMembers([ownerInfo]);
-
-        // Format the project data
+        // Format project data
         const formattedProject = {
           ...projectData,
-          owner: ownerInfo,
-          isOwner: session?.user?.id === projectData.creator_id,
           hasApplied: hasApplied,
-          team: [ownerInfo],
-          applications: applicationsData?.length || 0,
+          team: [projectData.owner], // For now, just set team members to owner
+          applications: applicationCount,
           website: "", // These fields don't exist in our DB yet
           repo: "", // These fields don't exist in our DB yet
           teamSize: projectData.tags?.[0] || "solo",
           commitment: projectData.tags?.[1] || "medium",
           compensation: projectData.tags?.[2] || "none",
           isRemote: projectData.tags?.[3] === "Remote",
-          requiredSkills: projectData.roles_needed || [],
+          requiredSkills: projectData.rolesNeeded || [],
         };
-
+        
         setProject(formattedProject);
       } catch (error) {
         console.error("Error loading project:", error);
-        toast("Error loading project details");
+        toast.error("Error loading project details");
       } finally {
         setIsLoading(false);
       }
     };
-
-    loadUserAndProject();
+    
+    loadProject();
   }, [projectId, hasApplied]);
 
   const formatDate = (dateString) => {
@@ -263,20 +202,12 @@ const ProjectDetailPage = () => {
                       >
                         {project.owner.name}
                       </Link>
-                      <p className="text-xs text-gray-500">{project.owner.title}</p>
+                      <p className="text-xs text-gray-500">{project.owner.title || "Project Owner"}</p>
                     </div>
                     <span className="mx-2 text-gray-400">•</span>
                     <span className="text-xs text-gray-500">
-                      Created {formatDate(project.created_at)}
+                      Created {formatDate(project.createdAt)}
                     </span>
-                    {project.updated_at && (
-                      <>
-                        <span className="mx-2 text-gray-400">•</span>
-                        <span className="text-xs text-gray-500">
-                          Updated {formatDate(project.updated_at)}
-                        </span>
-                      </>
-                    )}
                   </div>
                 </div>
 
@@ -452,7 +383,7 @@ const ProjectDetailPage = () => {
                         >
                           {member.name}
                         </Link>
-                        <p className="text-sm text-gray-600">{member.title}</p>
+                        <p className="text-sm text-gray-600">{member.title || "Team Member"}</p>
                       </div>
                     </div>
                   ))}

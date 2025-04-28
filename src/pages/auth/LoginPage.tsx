@@ -1,23 +1,42 @@
-import { useEffect } from "react";
+
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
 import Layout from "@/components/layout/Layout";
 import AuthForm from "@/components/auth/AuthForm";
-import { supabase } from "@/integrations/supabase/client";
+import { checkAuth } from "@/lib/auth";
 
 const LoginPage = () => {
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        navigate('/');
+    const verifyAuth = async () => {
+      try {
+        setLoading(true);
+        const user = await checkAuth();
+        if (user) {
+          navigate('/');
+        }
+      } catch (error) {
+        console.error("Auth check error:", error);
+      } finally {
+        setLoading(false);
       }
     };
     
-    checkSession();
+    verifyAuth();
   }, [navigate]);
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="min-h-screen py-16 flex items-center justify-center bg-gray-50">
+          <p>Loading...</p>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>

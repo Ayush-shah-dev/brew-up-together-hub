@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { CheckCircle } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { checkAuth } from "@/lib/auth";
+import { projectsApi } from "@/services/api";
+import { toast } from "sonner";
 
 const ProjectSuccessPage = () => {
   const [latestProject, setLatestProject] = useState(null);
@@ -12,24 +14,30 @@ const ProjectSuccessPage = () => {
 
   useEffect(() => {
     const fetchLatestProject = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
-        navigate('/login');
-        return;
-      }
-      
-      // Get the user's most recently created project
-      const { data, error } = await supabase
-        .from('projects')
-        .select('title, id')
-        .eq('creator_id', session.user.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
+      try {
+        // Check if user is authenticated
+        const user = await checkAuth();
+        if (!user) {
+          navigate('/login');
+          return;
+        }
         
-      if (data && !error) {
-        setLatestProject(data);
+        // Get all projects by the user
+        const projects = await projectsApi.getProjects();
+        
+        // Filter to only show owned projects
+        const userProjects = projects.filter(project => project.isOwner);
+        
+        // Sort by creation date (newest first)
+        userProjects.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        
+        // Get the most recent project
+        if (userProjects.length > 0) {
+          setLatestProject(userProjects[0]);
+        }
+      } catch (error) {
+        console.error("Error fetching latest project:", error);
+        toast.error("Error fetching project information");
       }
     };
     
