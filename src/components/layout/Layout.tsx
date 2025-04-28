@@ -1,4 +1,3 @@
-
 import { ReactNode, useEffect, useState } from "react";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
@@ -15,17 +14,25 @@ interface UserProfile {
 interface LayoutProps {
   children: ReactNode;
   requireAuth?: boolean;
+  isAuthenticated?: boolean;
+  userProfile?: UserProfile;
 }
 
-const Layout = ({ children, requireAuth = false }: LayoutProps) => {
-  const [user, setUser] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
+const Layout = ({ children, requireAuth = false, isAuthenticated, userProfile }: LayoutProps) => {
+  const [user, setUser] = useState<UserProfile | null>(userProfile || null);
+  const [loading, setLoading] = useState(!userProfile);
   const navigate = useNavigate();
   const location = useLocation();
   
   const isAuthPage = location.pathname === '/login' || location.pathname === '/signup' || location.pathname === '/forgot-password';
 
   useEffect(() => {
+    if (isAuthenticated !== undefined && userProfile) {
+      setUser(userProfile);
+      setLoading(false);
+      return;
+    }
+
     const loadUser = async () => {
       try {
         const userData = await checkAuth();
@@ -38,7 +45,7 @@ const Layout = ({ children, requireAuth = false }: LayoutProps) => {
     };
 
     loadUser();
-  }, []);
+  }, [isAuthenticated, userProfile]);
 
   useEffect(() => {
     if (!loading && requireAuth && !user) {
@@ -53,7 +60,7 @@ const Layout = ({ children, requireAuth = false }: LayoutProps) => {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <Navbar isAuthenticated={!!user} userProfile={user || undefined} />
+      <Navbar isAuthenticated={isAuthenticated || !!user} userProfile={userProfile || user || undefined} />
       <main className="flex-grow pt-16">{children}</main>
       <Footer />
     </div>
