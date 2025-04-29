@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import Layout from "@/components/layout/Layout";
@@ -18,6 +17,7 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { projectsApi } from "@/services/api";
 import { toast } from "sonner";
+import { checkAuth } from "@/lib/auth";
 
 // Skill options for filtering
 const SKILL_OPTIONS = [
@@ -45,6 +45,24 @@ const ProjectsPage = () => {
   const [stageFilter, setStageFilter] = useState<string | null>(null);
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userProfile, setUserProfile] = useState(null);
+
+  useEffect(() => {
+    const checkUserAuth = async () => {
+      try {
+        const user = await checkAuth();
+        if (user) {
+          setIsAuthenticated(true);
+          setUserProfile(user);
+        }
+      } catch (error) {
+        console.error("Auth check error:", error);
+      }
+    };
+    
+    checkUserAuth();
+  }, []);
 
   useEffect(() => {
     const fetchProjects = async () => {
@@ -82,7 +100,7 @@ const ProjectsPage = () => {
   const filteredProjects = projects;
 
   return (
-    <Layout>
+    <Layout isAuthenticated={isAuthenticated} userProfile={userProfile}>
       <div className="min-h-screen py-16 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header */}

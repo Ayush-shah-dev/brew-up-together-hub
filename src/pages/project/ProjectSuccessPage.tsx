@@ -10,6 +10,8 @@ import { toast } from "sonner";
 
 const ProjectSuccessPage = () => {
   const [latestProject, setLatestProject] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userProfile, setUserProfile] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -18,9 +20,13 @@ const ProjectSuccessPage = () => {
         // Check if user is authenticated
         const user = await checkAuth();
         if (!user) {
+          toast.error("You must be logged in to view this page");
           navigate('/login');
           return;
         }
+        
+        setIsAuthenticated(true);
+        setUserProfile(user);
         
         // Get all projects by the user
         const projects = await projectsApi.getProjects();
@@ -38,6 +44,7 @@ const ProjectSuccessPage = () => {
       } catch (error) {
         console.error("Error fetching latest project:", error);
         toast.error("Error fetching project information");
+        navigate('/login');
       }
     };
     
@@ -45,7 +52,7 @@ const ProjectSuccessPage = () => {
   }, [navigate]);
 
   return (
-    <Layout>
+    <Layout isAuthenticated={isAuthenticated} userProfile={userProfile} requireAuth={true}>
       <div className="min-h-screen py-16 flex items-center justify-center bg-gray-50">
         <div className="max-w-md w-full text-center">
           <div className="mb-6 flex justify-center">

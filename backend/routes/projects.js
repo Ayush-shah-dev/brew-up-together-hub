@@ -68,10 +68,15 @@ router.get('/', async (req, res) => {
 
 // @route   POST /api/projects
 // @desc    Create a new project
-// @access  Private
+// @access  Private - MUST be logged in
 router.post('/', protect, async (req, res) => {
   try {
+    // User is guaranteed to exist due to the protect middleware
     const { title, description, stage, category, rolesNeeded, tags } = req.body;
+    
+    if (!req.user) {
+      return res.status(401).json({ message: 'Authentication required to create projects' });
+    }
     
     const project = await Project.create({
       title,
