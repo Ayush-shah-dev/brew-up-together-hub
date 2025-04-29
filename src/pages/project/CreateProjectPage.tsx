@@ -20,8 +20,14 @@ const CreateProjectPage = () => {
           setIsAuthenticated(true);
           setUserProfile(user);
         } else {
+          // Clear any old data if not authenticated
+          setIsAuthenticated(false);
+          setUserProfile(null);
+          
+          // Store the current path to redirect back after login
+          const returnUrl = encodeURIComponent('/projects/new');
           toast.error("You must be logged in to create a project");
-          navigate("/login");
+          navigate(`/login?returnTo=${returnUrl}`);
         }
       } catch (error) {
         console.error("Auth check error:", error);
@@ -39,7 +45,7 @@ const CreateProjectPage = () => {
     return (
       <Layout>
         <div className="min-h-screen flex items-center justify-center">
-          <p>Loading...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cobrew-600"></div>
         </div>
       </Layout>
     );

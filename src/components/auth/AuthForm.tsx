@@ -1,5 +1,6 @@
+
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -15,7 +16,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { loginUser, registerUser } from "@/lib/auth";
 
 type AuthMode = "login" | "signup";
 
@@ -35,7 +36,12 @@ const signupSchema = loginSchema.extend({
 type LoginFormValues = z.infer<typeof loginSchema>;
 type SignupFormValues = z.infer<typeof signupSchema>;
 
-const AuthForm = ({ mode }: { mode: AuthMode }) => {
+interface AuthFormProps {
+  mode: AuthMode;
+  returnTo?: string;
+}
+
+const AuthForm = ({ mode, returnTo = '/dashboard' }: AuthFormProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
@@ -60,61 +66,23 @@ const AuthForm = ({ mode }: { mode: AuthMode }) => {
   const onLoginSubmit = async (values: LoginFormValues) => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: values.email,
-        password: values.password,
-      });
-      
-      if (error) throw error;
-      
-      toast.success("Login successful!");
-      navigate("/");
+      await loginUser(values.email, values.password);
+      navigate(returnTo);
     } catch (error: any) {
       setIsLoading(false);
-      if (error.message.includes("Invalid login credentials")) {
-        toast.error("Invalid email or password");
-      } else {
-        toast.error(error.message);
-      }
+      console.error("Login error:", error);
     }
   };
 
   const onSignupSubmit = async (values: SignupFormValues) => {
     setIsLoading(true);
     try {
-      const { data: existingUsers, error: checkError } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('email', values.email)
-        .single();
-
-      if (existingUsers) {
-        setIsLoading(false);
-        toast.error("An account with this email already exists");
-        return;
-      }
-
-      const { data, error } = await supabase.auth.signUp({
-        email: values.email,
-        password: values.password,
-        options: {
-          data: {
-            name: values.name,
-          },
-        },
-      });
-      
-      if (error) throw error;
-      
-      toast.success("Account created successfully! Please check your email to verify your account.");
-      navigate("/");
+      await registerUser(values.email, values.password);
+      toast.success("Account created successfully!");
+      navigate(returnTo);
     } catch (error: any) {
       setIsLoading(false);
-      if (error.message.includes("User already registered")) {
-        toast.error("An account with this email already exists");
-      } else {
-        toast.error(error.message || "Error creating account. Please try again.");
-      }
+      console.error("Signup error:", error);
     }
   };
 
@@ -161,12 +129,16 @@ const AuthForm = ({ mode }: { mode: AuthMode }) => {
               )}
             />
             <div className="flex items-center justify-between">
-              <Link
-                to="/forgot-password"
-                className="text-sm text-cobrew-600 hover:text-cobrew-800"
+              <Button
+                type="button"
+                variant="link"
+                className="p-0 h-auto text-sm text-cobrew-600 hover:text-cobrew-800"
+                asChild
               >
-                Forgot password?
-              </Link>
+                <Link to="/forgot-password">
+                  Forgot password?
+                </Link>
+              </Button>
             </div>
             <Button
               type="submit"

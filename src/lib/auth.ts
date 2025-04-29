@@ -1,5 +1,5 @@
 
-import { authApi, setAuthToken } from "@/services/api";
+import { authApi, setAuthToken, removeAuthToken } from "@/services/api";
 import { toast } from "sonner";
 
 interface AuthUser {
@@ -35,6 +35,7 @@ export const loginUser = async (
     const response = await authApi.login(email, password);
     
     if (response.token && response.user) {
+      localStorage.setItem("token", response.token);
       setAuthToken(response.token);
       toast.success("Login successful");
       return response.user;
@@ -57,6 +58,7 @@ export const registerUser = async (
     const response = await authApi.register(email, password);
     
     if (response.token && response.user) {
+      localStorage.setItem("token", response.token);
       setAuthToken(response.token);
       toast.success("Registration successful");
       return response.user;
@@ -74,8 +76,13 @@ export const registerUser = async (
 export const logoutUser = async (): Promise<void> => {
   try {
     await authApi.logout();
+    localStorage.removeItem("token");
+    removeAuthToken();
     toast.success("Logout successful");
   } catch (error) {
     console.error("Logout error:", error);
+    // Clean up local storage even if API call fails
+    localStorage.removeItem("token");
+    removeAuthToken();
   }
 };

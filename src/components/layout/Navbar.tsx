@@ -2,7 +2,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,8 +18,21 @@ import {
   BriefcaseIcon
 } from "lucide-react";
 import { toast } from "sonner";
+import { logoutUser } from "@/lib/auth";
 
-const Navbar = ({ isAuthenticated = false, userProfile = null }) => {
+interface UserProfile {
+  id?: string;
+  email?: string;
+  avatar_url?: string;
+  avatarUrl?: string;
+}
+
+interface NavbarProps {
+  isAuthenticated?: boolean;
+  userProfile?: UserProfile;
+}
+
+const Navbar = ({ isAuthenticated = false, userProfile }: NavbarProps) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
@@ -33,12 +45,12 @@ const Navbar = ({ isAuthenticated = false, userProfile = null }) => {
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    toast.success("Logged out successfully");
+    await logoutUser();
     navigate("/");
   };
 
   const getInitials = (name = "") => {
+    if (!name) return "U";
     return name
       .split(" ")
       .map((part) => part[0])
@@ -60,13 +72,21 @@ const Navbar = ({ isAuthenticated = false, userProfile = null }) => {
             <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
               <Link
                 to="/"
-                className="border-transparent text-gray-900 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                className={`${
+                  location.pathname === '/' 
+                    ? 'border-cobrew-500 text-gray-900'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium`}
               >
                 Home
               </Link>
               <Link
                 to="/projects"
-                className="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                className={`${
+                  location.pathname.startsWith('/project') || location.pathname === '/projects'
+                    ? 'border-cobrew-500 text-gray-900'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium`}
               >
                 Projects
               </Link>
@@ -74,13 +94,21 @@ const Navbar = ({ isAuthenticated = false, userProfile = null }) => {
                 <>
                   <Link
                     to="/dashboard"
-                    className="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                    className={`${
+                      location.pathname === '/dashboard'
+                        ? 'border-cobrew-500 text-gray-900'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium`}
                   >
                     Dashboard
                   </Link>
                   <Link
                     to="/messages"
-                    className="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                    className={`${
+                      location.pathname === '/messages'
+                        ? 'border-cobrew-500 text-gray-900'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium`}
                   >
                     Messages
                   </Link>
@@ -100,7 +128,7 @@ const Navbar = ({ isAuthenticated = false, userProfile = null }) => {
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Avatar className="h-8 w-8 cursor-pointer">
-                      <AvatarImage src={userProfile?.avatar_url} />
+                      <AvatarImage src={userProfile?.avatar_url || userProfile?.avatarUrl} />
                       <AvatarFallback className="bg-cobrew-500 text-white">
                         {getInitials(userProfile?.email || "User")}
                       </AvatarFallback>
@@ -142,7 +170,7 @@ const Navbar = ({ isAuthenticated = false, userProfile = null }) => {
                 <div className="flex items-center gap-4">
                   <Button 
                     variant="outline" 
-                    onClick={() => navigate("/login")}
+                    onClick={() => navigate(`/login?returnTo=${encodeURIComponent(location.pathname)}`)}
                   >
                     Login
                   </Button>
@@ -238,7 +266,7 @@ const Navbar = ({ isAuthenticated = false, userProfile = null }) => {
                 <div className="flex items-center px-4">
                   <div className="flex-shrink-0">
                     <Avatar className="h-8 w-8">
-                      <AvatarImage src={userProfile?.avatar_url} />
+                      <AvatarImage src={userProfile?.avatar_url || userProfile?.avatarUrl} />
                       <AvatarFallback className="bg-cobrew-500 text-white">
                         {getInitials(userProfile?.email || "User")}
                       </AvatarFallback>
@@ -289,7 +317,7 @@ const Navbar = ({ isAuthenticated = false, userProfile = null }) => {
                   <Button 
                     variant="outline" 
                     className="w-full justify-center mb-2"
-                    onClick={() => navigate("/login")}
+                    onClick={() => navigate(`/login?returnTo=${encodeURIComponent(location.pathname)}`)}
                   >
                     Login
                   </Button>

@@ -1,6 +1,6 @@
 
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Link } from "react-router-dom";
 import Layout from "@/components/layout/Layout";
 import AuthForm from "@/components/auth/AuthForm";
@@ -8,7 +8,12 @@ import { checkAuth } from "@/lib/auth";
 
 const LoginPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [loading, setLoading] = useState(true);
+  
+  // Get the returnTo parameter from the URL if it exists
+  const searchParams = new URLSearchParams(location.search);
+  const returnTo = searchParams.get('returnTo') || '/dashboard';
 
   useEffect(() => {
     const verifyAuth = async () => {
@@ -16,7 +21,8 @@ const LoginPage = () => {
         setLoading(true);
         const user = await checkAuth();
         if (user) {
-          navigate('/');
+          // If user is already authenticated, redirect to the return URL or dashboard
+          navigate(returnTo);
         }
       } catch (error) {
         console.error("Auth check error:", error);
@@ -26,13 +32,13 @@ const LoginPage = () => {
     };
     
     verifyAuth();
-  }, [navigate]);
+  }, [navigate, returnTo]);
 
   if (loading) {
     return (
       <Layout>
         <div className="min-h-screen py-16 flex items-center justify-center bg-gray-50">
-          <p>Loading...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cobrew-600"></div>
         </div>
       </Layout>
     );
@@ -49,13 +55,13 @@ const LoginPage = () => {
             </p>
           </div>
           
-          <AuthForm mode="login" />
+          <AuthForm mode="login" returnTo={returnTo} />
           
           <div className="mt-8 text-center">
             <p className="text-sm text-gray-600">
               New to Co-Brew?{" "}
               <Link
-                to="/signup"
+                to={`/signup${returnTo !== '/dashboard' ? `?returnTo=${returnTo}` : ''}`}
                 className="font-medium text-cobrew-600 hover:text-cobrew-800"
               >
                 Create an account
